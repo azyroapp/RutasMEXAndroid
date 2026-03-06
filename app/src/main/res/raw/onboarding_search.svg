@@ -1,0 +1,75 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo circular suave -->
+  <circle cx="100" cy="100" r="90" fill="#34C759" opacity="0.1"/>
+  
+  <!-- Círculo de la lupa (con sombra) -->
+  <circle cx="85" cy="85" r="42" fill="#F5F5F5"/>
+  <circle cx="85" cy="85" r="40" stroke="#34C759" stroke-width="7" fill="white"/>
+  
+  <!-- Contenido dentro de la lupa: Mini mapa con rutas -->
+  <g clip-path="url(#lupaClip)">
+    <!-- Calles del mapa -->
+    <line x1="60" y1="70" x2="110" y2="70" stroke="#E0E0E0" stroke-width="1.5"/>
+    <line x1="60" y1="85" x2="110" y2="85" stroke="#E0E0E0" stroke-width="1.5"/>
+    <line x1="60" y1="100" x2="110" y2="100" stroke="#E0E0E0" stroke-width="1.5"/>
+    <line x1="70" y1="60" x2="70" y2="110" stroke="#E0E0E0" stroke-width="1.5"/>
+    <line x1="85" y1="60" x2="85" y2="110" stroke="#E0E0E0" stroke-width="1.5"/>
+    <line x1="100" y1="60" x2="100" y2="110" stroke="#E0E0E0" stroke-width="1.5"/>
+    
+    <!-- Ruta 1 (verde) -->
+    <path d="M 60 65 Q 75 70, 85 85 T 110 95" stroke="#34C759" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+    <circle cx="60" cy="65" r="3" fill="#34C759"/>
+    <circle cx="110" cy="95" r="3" fill="#34C759"/>
+    
+    <!-- Ruta 2 (azul) -->
+    <path d="M 65 105 Q 80 95, 90 85 T 105 65" stroke="#007AFF" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+    <circle cx="65" cy="105" r="3" fill="#007AFF"/>
+    <circle cx="105" cy="65" r="3" fill="#007AFF"/>
+    
+    <!-- Ruta 3 (naranja) -->
+    <path d="M 60 85 L 75 85 L 85 75 L 95 85 L 110 85" stroke="#FF9500" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <circle cx="60" cy="85" r="2.5" fill="#FF9500"/>
+    <circle cx="110" cy="85" r="2.5" fill="#FF9500"/>
+    
+    <!-- Íconos de autobús pequeños -->
+    <g transform="translate(75, 72)">
+      <rect x="-3" y="-3" width="6" height="6" rx="1" fill="#34C759"/>
+      <rect x="-2" y="-2" width="4" height="4" rx="0.5" fill="white" opacity="0.7"/>
+    </g>
+    
+    <g transform="translate(95, 78)">
+      <rect x="-3" y="-3" width="6" height="6" rx="1" fill="#007AFF"/>
+      <rect x="-2" y="-2" width="4" height="4" rx="0.5" fill="white" opacity="0.7"/>
+    </g>
+  </g>
+  
+  <!-- Clip path para el contenido de la lupa -->
+  <defs>
+    <clipPath id="lupaClip">
+      <circle cx="85" cy="85" r="38"/>
+    </clipPath>
+  </defs>
+  
+  <!-- Borde interior de la lupa (profundidad) -->
+  <circle cx="85" cy="85" r="40" stroke="#2A9D4E" stroke-width="2" fill="none" opacity="0.3"/>
+  
+  <!-- Mango de la lupa (con volumen) -->
+  <line x1="115" y1="115" x2="145" y2="145" stroke="#34C759" stroke-width="8" stroke-linecap="round"/>
+  <line x1="115" y1="115" x2="145" y2="145" stroke="#2A9D4E" stroke-width="6" stroke-linecap="round"/>
+  
+  <!-- Brillo en la lupa (highlight) -->
+  <path d="M 65 70 Q 70 65, 75 65 Q 80 65, 85 70" stroke="white" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.6"/>
+  
+  <!-- Badge de resultados encontrados -->
+  <g transform="translate(120, 60)">
+    <circle cx="0" cy="0" r="14" fill="#34C759"/>
+    <circle cx="0" cy="0" r="12" fill="white"/>
+    <circle cx="0" cy="0" r="10" fill="#34C759"/>
+    <text x="0" y="5" text-anchor="middle" fill="white" font-size="12" font-weight="bold" font-family="Arial, sans-serif">5</text>
+  </g>
+  
+  <!-- Líneas de búsqueda/escaneo -->
+  <line x1="50" y1="50" x2="60" y2="60" stroke="#34C759" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+  <line x1="120" y1="50" x2="110" y2="60" stroke="#34C759" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+  <line x1="50" y1="120" x2="60" y2="110" stroke="#34C759" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+</svg>

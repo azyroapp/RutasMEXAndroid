@@ -35,6 +35,8 @@ class HomeViewModel @Inject constructor(
     private val favoriteSearchDao: com.azyroapp.rutasmex.data.local.FavoriteSearchDao,
     private val savedPlaceDao: com.azyroapp.rutasmex.data.local.SavedPlaceDao,
     private val preferencesManager: com.azyroapp.rutasmex.data.preferences.PreferencesManager,
+    val onboardingService: com.azyroapp.rutasmex.core.services.OnboardingService,
+    val legalDocumentService: com.azyroapp.rutasmex.core.services.LegalDocumentCacheService,
     @ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
     

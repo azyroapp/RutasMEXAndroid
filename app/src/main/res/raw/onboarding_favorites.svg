@@ -1,0 +1,24 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Estrella con rutas favoritas -->
+  <circle cx="100" cy="100" r="90" fill="#FFD60A" opacity="0.1"/>
+  
+  <!-- Estrella principal -->
+  <path d="M 100 50 L 110 80 L 142 85 L 118 107 L 125 140 L 100 123 L 75 140 L 82 107 L 58 85 L 90 80 Z" fill="#FFD60A"/>
+  
+  <!-- Estrella interior (brillo) -->
+  <path d="M 100 65 L 106 85 L 125 88 L 110 101 L 114 120 L 100 110 L 86 120 L 90 101 L 75 88 L 94 85 Z" fill="#FFF9E6"/>
+  
+  <!-- Rutas pequeñas alrededor -->
+  <g opacity="0.6">
+    <path d="M 50 60 L 60 60 L 65 65" stroke="#FFD60A" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <path d="M 140 60 L 150 60 L 145 65" stroke="#FFD60A" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <path d="M 50 140 L 60 140 L 55 145" stroke="#FFD60A" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <path d="M 140 140 L 150 140 L 145 135" stroke="#FFD60A" stroke-width="2" stroke-linecap="round" fill="none"/>
+  </g>
+  
+  <!-- Puntos decorativos -->
+  <circle cx="45" cy="55" r="3" fill="#FFD60A"/>
+  <circle cx="155" cy="55" r="3" fill="#FFD60A"/>
+  <circle cx="45" cy="145" r="3" fill="#FFD60A"/>
+  <circle cx="155" cy="145" r="3" fill="#FFD60A"/>
+</svg>

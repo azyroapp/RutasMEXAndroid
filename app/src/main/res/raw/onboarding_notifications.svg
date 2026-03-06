@@ -1,0 +1,57 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo circular suave -->
+  <circle cx="100" cy="100" r="90" fill="#FF3B30" opacity="0.1"/>
+  
+  <!-- Ondas de notificación (izquierda) -->
+  <path d="M 50 85 Q 45 90, 50 95" stroke="#FF3B30" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <path d="M 40 80 Q 33 90, 40 100" stroke="#FF3B30" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.7"/>
+  <path d="M 30 75 Q 21 90, 30 105" stroke="#FF3B30" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+  
+  <!-- Ondas de notificación (derecha) -->
+  <path d="M 150 85 Q 155 90, 150 95" stroke="#FF3B30" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <path d="M 160 80 Q 167 90, 160 100" stroke="#FF3B30" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.7"/>
+  <path d="M 170 75 Q 179 90, 170 105" stroke="#FF3B30" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+  
+  <!-- Soporte superior de la campana -->
+  <rect x="97" y="55" width="6" height="8" rx="3" fill="#C41E1A"/>
+  
+  <!-- Cuerpo principal de la campana (forma realista) -->
+  <path d="M 100 63 
+           C 95 63, 92 65, 90 68
+           L 85 78
+           C 82 85, 75 92, 72 100
+           C 70 105, 70 108, 72 110
+           L 128 110
+           C 130 108, 130 105, 128 100
+           C 125 92, 118 85, 115 78
+           L 110 68
+           C 108 65, 105 63, 100 63 Z" 
+           fill="#FF3B30"/>
+  
+  <!-- Sombra interna de la campana -->
+  <path d="M 100 63 
+           C 95 63, 92 65, 90 68
+           L 85 78
+           C 82 85, 75 92, 72 100
+           C 70 105, 70 108, 72 110
+           L 100 110
+           L 100 63 Z" 
+           fill="#000000" opacity="0.15"/>
+  
+  <!-- Borde inferior de la campana (más definido) -->
+  <ellipse cx="100" cy="110" rx="28" ry="4" fill="#C41E1A"/>
+  
+  <!-- Badajo (clapper) -->
+  <line x1="100" y1="110" x2="100" y2="120" stroke="#C41E1A" stroke-width="2.5" stroke-linecap="round"/>
+  <ellipse cx="100" cy="122" rx="5" ry="6" fill="#FF3B30"/>
+  <ellipse cx="100" cy="121" rx="4" ry="5" fill="#FF6B66"/>
+  
+  <!-- Brillo en la campana (highlight) -->
+  <path d="M 85 75 Q 88 70, 92 68 L 95 75 Q 92 78, 88 82 Z" fill="white" opacity="0.3"/>
+  
+  <!-- Badge de notificación (más profesional) -->
+  <circle cx="125" cy="70" r="15" fill="#FF3B30"/>
+  <circle cx="125" cy="70" r="13" fill="white"/>
+  <circle cx="125" cy="70" r="11" fill="#FF3B30"/>
+  <text x="125" y="76" text-anchor="middle" fill="white" font-size="16" font-weight="bold" font-family="Arial, sans-serif">3</text>
+</svg>

@@ -20,10 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.azyroapp.rutasmex.core.services.LegalDocumentCacheService
+import com.azyroapp.rutasmex.core.services.OnboardingService
 import com.azyroapp.rutasmex.data.model.Route
 import com.azyroapp.rutasmex.ui.components.*
 import com.azyroapp.rutasmex.ui.viewmodel.HomeViewModel
 import com.google.android.gms.maps.model.LatLng
+import javax.inject.Inject
 
 /**
  * Pantalla principal de la aplicación con Compose
@@ -80,6 +83,15 @@ fun HomeScreen(
     var showTripDetail by remember { mutableStateOf(false) }
     var showProximityConfigModal by remember { mutableStateOf(false) }
     var showTripHistory by remember { mutableStateOf(false) }
+    
+    // Estados para Settings y pantallas relacionadas
+    var showWebView by remember { mutableStateOf(false) }
+    var webViewDocument by remember { mutableStateOf<LegalDocumentCacheService.LegalDocument?>(null) }
+    var webViewTitle by remember { mutableStateOf("") }
+    var showAbout by remember { mutableStateOf(false) }
+    var showHelp by remember { mutableStateOf(false) }
+    var showContact by remember { mutableStateOf(false) }
+    var showOnboardingFromSettings by remember { mutableStateOf(false) }
     
     // Permisos de ubicación
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -677,25 +689,67 @@ fun HomeScreen(
     
     // Modal de configuración (Settings)
     if (showSettings) {
-        AlertDialog(
-            onDismissRequest = { showSettings = false },
-            title = { Text("Configuración") },
-            text = {
-                Column {
-                    Text("Pantalla de configuración próximamente disponible")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Aquí podrás configurar:")
-                    Text("• Preferencias de notificaciones")
-                    Text("• Unidades de medida")
-                    Text("• Idioma")
-                    Text("• Tema de la app")
-                    Text("• Y más...")
-                }
+        SettingsModal(
+            onDismiss = { showSettings = false },
+            onShowOnboarding = {
+                showSettings = false
+                showOnboardingFromSettings = true
             },
-            confirmButton = {
-                TextButton(onClick = { showSettings = false }) {
-                    Text("Entendido")
-                }
+            onShowWebView = { document, title ->
+                webViewDocument = document
+                webViewTitle = title
+                showWebView = true
+            },
+            onShowAbout = {
+                showAbout = true
+            },
+            onShowHelp = {
+                showHelp = true
+            },
+            onShowContact = {
+                showContact = true
+            },
+            onboardingService = viewModel.onboardingService,
+            legalDocumentService = viewModel.legalDocumentService
+        )
+    }
+    
+    // WebView para documentos legales
+    if (showWebView && webViewDocument != null) {
+        WebViewScreen(
+            document = webViewDocument!!,
+            title = webViewTitle,
+            onBack = { showWebView = false }
+        )
+    }
+    
+    // Pantalla About
+    if (showAbout) {
+        AboutScreen(
+            onBack = { showAbout = false }
+        )
+    }
+    
+    // Pantalla Help
+    if (showHelp) {
+        HelpScreen(
+            onBack = { showHelp = false }
+        )
+    }
+    
+    // Pantalla Contact
+    if (showContact) {
+        ContactScreen(
+            onBack = { showContact = false }
+        )
+    }
+    
+    // Onboarding desde Settings
+    if (showOnboardingFromSettings) {
+        OnboardingScreen(
+            onboardingService = viewModel.onboardingService,
+            onComplete = {
+                showOnboardingFromSettings = false
             }
         )
     }

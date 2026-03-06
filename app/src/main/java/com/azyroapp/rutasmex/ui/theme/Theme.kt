@@ -12,20 +12,24 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Primary,
-    onPrimary = Background,
-    primaryContainer = PrimaryDark,
-    onPrimaryContainer = PrimaryLight,
-    secondary = Accent,
-    onSecondary = Background,
-    secondaryContainer = AccentLight,
+    primary = PrimaryDarkMode,
+    onPrimary = BackgroundDark,
+    primaryContainer = PrimaryDarkModeDark,
+    onPrimaryContainer = PrimaryDarkMode,
+    secondary = AccentDarkMode,
+    onSecondary = BackgroundDark,
+    secondaryContainer = PrimaryDarkModeDark,
+    onSecondaryContainer = AccentDarkMode,
     tertiary = RouteCompleto,
-    background = TextPrimary,
-    onBackground = Background,
-    surface = TextPrimary,
-    onSurface = Background,
+    onTertiary = BackgroundDark,
+    background = BackgroundDark,
+    onBackground = TextPrimaryDark,
+    surface = SurfaceDark,
+    onSurface = TextPrimaryDark,
+    surfaceVariant = SurfaceVariantDark,
+    onSurfaceVariant = TextSecondaryDark,
     error = Error,
-    onError = Background
+    onError = BackgroundDark
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -63,7 +67,12 @@ fun RutasMEXTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
+            // Status bar color: oscuro en dark mode, primary en light mode
+            window.statusBarColor = if (darkTheme) {
+                android.graphics.Color.parseColor("#121212")
+            } else {
+                colorScheme.primary.toArgb()
+            }
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }

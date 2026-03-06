@@ -1,0 +1,30 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Check mark con celebración -->
+  <circle cx="100" cy="100" r="90" fill="#007AFF" opacity="0.1"/>
+  
+  <!-- Círculo principal -->
+  <circle cx="100" cy="100" r="60" fill="#007AFF"/>
+  <circle cx="100" cy="100" r="55" fill="white"/>
+  
+  <!-- Check mark grande -->
+  <path d="M 75 100 L 92 117 L 130 75" stroke="#007AFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  
+  <!-- Confetti/celebración -->
+  <g opacity="0.8">
+    <!-- Estrellas pequeñas -->
+    <path d="M 45 50 L 47 55 L 52 55 L 48 58 L 50 63 L 45 60 L 40 63 L 42 58 L 38 55 L 43 55 Z" fill="#FFD60A"/>
+    <path d="M 155 50 L 157 55 L 162 55 L 158 58 L 160 63 L 155 60 L 150 63 L 152 58 L 148 55 L 153 55 Z" fill="#FFD60A"/>
+    
+    <!-- Círculos de confetti -->
+    <circle cx="50" cy="140" r="4" fill="#FF3B30"/>
+    <circle cx="150" cy="140" r="4" fill="#34C759"/>
+    <circle cx="40" cy="100" r="3" fill="#AF52DE"/>
+    <circle cx="160" cy="100" r="3" fill="#FF9500"/>
+    
+    <!-- Líneas de confetti -->
+    <line x1="55" y1="60" x2="60" y2="70" stroke="#34C759" stroke-width="3" stroke-linecap="round"/>
+    <line x1="145" y1="60" x2="140" y2="70" stroke="#FF3B30" stroke-width="3" stroke-linecap="round"/>
+    <line x1="60" y1="130" x2="65" y2="140" stroke="#AF52DE" stroke-width="3" stroke-linecap="round"/>
+    <line x1="140" y1="130" x2="135" y2="140" stroke="#FFD60A" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>
