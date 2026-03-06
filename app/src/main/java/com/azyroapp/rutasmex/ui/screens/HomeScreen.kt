@@ -435,6 +435,7 @@ fun HomeScreen(
                 tempSelectedRoutes.value = emptySet()
             },
             onApply = {
+                // Aplicar rutas seleccionadas al ViewModel
                 viewModel.clearSelectedRoutes()
                 tempSelectedRoutes.value.forEach { route ->
                     viewModel.toggleRouteSelection(route)
@@ -444,8 +445,14 @@ fun HomeScreen(
                     "${tempSelectedRoutes.value.size} rutas aplicadas",
                     Toast.LENGTH_SHORT
                 ).show()
+                showRouteSearch = false
             },
             onDismiss = {
+                // Aplicar automáticamente al cerrar
+                viewModel.clearSelectedRoutes()
+                tempSelectedRoutes.value.forEach { route ->
+                    viewModel.toggleRouteSelection(route)
+                }
                 showRouteSearch = false
             }
         )

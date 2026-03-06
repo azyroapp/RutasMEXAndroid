@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.azyroapp.rutasmex.data.model.Route
 
@@ -34,8 +35,68 @@ fun RouteSearchModal(
     var searchQuery by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
     
-    // Filtrar rutas según búsqueda
-    val filteredRoutes = remember(routes, searchQuery) {
+    // Obtener categorías únicas (routeType)
+    val routeCategories = remember(routes) {
+        val categories = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+        
+        // Primero agregar "Urbana" si existe
+        if (routes.any { it.routeType == "Urbana" }) {
+            categories.add("Urbana")
+            seen.add("Urbana")
+        }
+        
+        // Luego agregar las demás en el orden que aparecen
+        routes.forEach { route ->
+            if (!seen.contains(route.routeType)) {
+                categories.add(route.routeType)
+                seen.add(route.routeType)
+            }
+        }
+        
+        categories
+    }
+    
+    // Categoría seleccionada
+    var selectedCategory by remember { 
+        mutableStateOf(routeCategories.firstOrNull() ?: "") 
+    }
+    
+    // Filtrar rutas según búsqueda y categoría
+    val filteredRoutes = remember(routes, searchQuery, selectedCategory) {
+        var filtered = routes
+        
+        // Filtrar por búsqueda
+        if (searchQuery.isNotEmpty()) {
+            filtered = filtered.filter { route ->
+                route.name.contains(searchQuery, ignoreCase = true) ||
+                route.id.contains(searchQuery, ignoreCase = true)
+            }
+        }
+        
+        // Filtrar por categoría
+        if (selectedCategory.isNotEmpty()) {
+            filtered = filtered.filter { it.routeType == selectedCategory }
+        }
+        
+        // Ordenar alfabéticamente
+        filtered.sortedBy { it.name }
+    }
+    
+    // Contar rutas por categoría (considerando búsqueda)
+    fun routeCount(category: String): Int {
+        var filtered = routes.filter { it.routeType == category }
+        if (searchQuery.isNotEmpty()) {
+            filtered = filtered.filter { route ->
+                route.name.contains(searchQuery, ignoreCase = true) ||
+                route.id.contains(searchQuery, ignoreCase = true)
+            }
+        }
+        return filtered.count()
+    }
+    
+    // Total de rutas disponibles según filtros
+    val totalAvailableRoutes = remember(routes, searchQuery) {
         if (searchQuery.isEmpty()) {
             routes
         } else {
@@ -46,8 +107,15 @@ fun RouteSearchModal(
         }
     }
     
-    // Contar seleccionadas
-    val selectedCount = selectedRoutes.size
+    // Rutas seleccionadas de las disponibles
+    val selectedAvailableCount = remember(selectedRoutes, totalAvailableRoutes) {
+        selectedRoutes.count { route ->
+            totalAvailableRoutes.any { it.id == route.id }
+        }
+    }
+    
+    // Verificar si todas las disponibles están seleccionadas
+    val allAvailableSelected = selectedAvailableCount == totalAvailableRoutes.size && totalAvailableRoutes.isNotEmpty()
     
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -57,43 +125,75 @@ fun RouteSearchModal(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp)
         ) {
-            // Título con contador
+            // Header con botón de cerrar y contador
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Buscar Rutas",
-                    style = MaterialTheme.typography.titleLarge
-                )
+                // Botón X para cerrar
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cerrar",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 
-                if (selectedCount > 0) {
-                    Surface(
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
-                        Text(
-                            text = "$selectedCount seleccionadas",
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
+                // Botón de seleccionar/deseleccionar todas con contador
+                TextButton(
+                    onClick = {
+                        if (allAvailableSelected) {
+                            // Deseleccionar solo las rutas filtradas disponibles
+                            totalAvailableRoutes.forEach { route ->
+                                if (selectedRoutes.any { it.id == route.id }) {
+                                    onRouteToggle(route, false)
+                                }
+                            }
+                        } else {
+                            // Primero deseleccionar todas
+                            routes.forEach { route ->
+                                if (selectedRoutes.any { it.id == route.id }) {
+                                    onRouteToggle(route, false)
+                                }
+                            }
+                            // Luego seleccionar solo las filtradas disponibles
+                            totalAvailableRoutes.forEach { route ->
+                                if (!selectedRoutes.any { it.id == route.id }) {
+                                    onRouteToggle(route, true)
+                                }
+                            }
+                        }
                     }
+                ) {
+                    Icon(
+                        imageVector = if (allAvailableSelected) {
+                            Icons.Default.CheckBox
+                        } else {
+                            Icons.Default.CheckBoxOutlineBlank
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "$selectedAvailableCount/${totalAvailableRoutes.size} rutas",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
             
-            // Barra de búsqueda
+            // Barra de búsqueda con teclado numérico
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                placeholder = { Text("Buscar por nombre o número...") },
+                    .padding(bottom = 12.dp),
+                placeholder = { Text("Buscar ruta...") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
@@ -111,6 +211,7 @@ fun RouteSearchModal(
                     }
                 },
                 keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number, // Teclado numérico por defecto
                     imeAction = ImeAction.Search
                 ),
                 keyboardActions = KeyboardActions(
@@ -121,42 +222,27 @@ fun RouteSearchModal(
                 singleLine = true
             )
             
-            // Botones de acción
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onClearAll,
-                    modifier = Modifier.weight(1f),
-                    enabled = selectedCount > 0
+            // Picker de categorías (si hay más de una)
+            if (routeCategories.size > 1) {
+                ScrollableTabRow(
+                    selectedTabIndex = routeCategories.indexOf(selectedCategory).coerceAtLeast(0),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    edgePadding = 0.dp
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Clear,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Limpiar")
-                }
-                
-                Button(
-                    onClick = {
-                        onApply()
-                        onDismiss()
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = selectedCount > 0
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Aplicar")
+                    routeCategories.forEach { category ->
+                        Tab(
+                            selected = selectedCategory == category,
+                            onClick = { selectedCategory = category },
+                            text = {
+                                Text(
+                                    text = "(${routeCount(category)}) $category",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        )
+                    }
                 }
             }
             
@@ -189,13 +275,14 @@ fun RouteSearchModal(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 400.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .heightIn(max = 400.dp)
+                        .padding(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(filteredRoutes) { route ->
-                        RouteSearchItem(
+                        RouteCheckboxItem(
                             route = route,
-                            isSelected = selectedRoutes.contains(route),
+                            isSelected = selectedRoutes.any { it.id == route.id },
                             onToggle = { isSelected ->
                                 onRouteToggle(route, isSelected)
                             }
@@ -203,15 +290,38 @@ fun RouteSearchModal(
                     }
                 }
             }
+            
+            // Botón Aplicar (siempre visible)
+            Button(
+                onClick = onApply,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                enabled = selectedRoutes.isNotEmpty()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (selectedRoutes.isEmpty()) {
+                        "Selecciona al menos una ruta"
+                    } else {
+                        "Aplicar ${selectedRoutes.size} ruta${if (selectedRoutes.size != 1) "s" else ""}"
+                    }
+                )
+            }
         }
     }
 }
 
 /**
- * Item de ruta en búsqueda
+ * Item de ruta en búsqueda (estilo iOS)
  */
 @Composable
-private fun RouteSearchItem(
+private fun RouteCheckboxItem(
     route: Route,
     isSelected: Boolean,
     onToggle: (Boolean) -> Unit,
@@ -224,15 +334,15 @@ private fun RouteSearchItem(
         color = if (isSelected) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
-            MaterialTheme.colorScheme.surfaceVariant
+            MaterialTheme.colorScheme.surface
         },
         tonalElevation = if (isSelected) 2.dp else 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Checkbox
@@ -242,36 +352,24 @@ private fun RouteSearchItem(
             )
             
             // Nombre de ruta
-            Column(
+            Text(
+                text = route.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (isSelected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
                 modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = route.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
-                )
-                
-                Text(
-                    text = "${route.coordinates.size} puntos",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
-            }
+            )
             
-            // Indicador de selección
+            // Indicador de selección (checkmark)
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
