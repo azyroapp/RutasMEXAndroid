@@ -31,6 +31,7 @@ Modificar el modal de selección de origen/destino en Android para que sea IDÉN
 
 ## 🎨 DISEÑO NUEVO (iOS Style)
 
+**Sin búsqueda:**
 ```
 ┌─────────────────────────────────────┐
 │  ✕    📍 Seleccionar Origen    OK   │ ← Header con botones
@@ -38,7 +39,7 @@ Modificar el modal de selección de origen/destino en Android para que sea IDÉN
 │  🔍 Buscar lugar de origen...  📍   │ ← Campo + Botón Mi Ubicación
 ├─────────────────────────────────────┤
 │                                     │
-│  Mis Lugares                        │ ← Sección (cuando no hay búsqueda)
+│  Mis Lugares                        │ ← Sección (siempre visible)
 │                                     │
 │  ⭐ Casa                            │
 │     Calle Principal 123             │
@@ -51,7 +52,7 @@ Modificar el modal de selección de origen/destino en Android para que sea IDÉN
 └─────────────────────────────────────┘
 ```
 
-**Con búsqueda activa:**
+**Con búsqueda activa (COMO iOS - muestra ambas secciones):**
 ```
 ┌─────────────────────────────────────┐
 │  ✕    📍 Seleccionar Origen    OK   │
@@ -59,7 +60,17 @@ Modificar el modal de selección de origen/destino en Android para que sea IDÉN
 │  🔍 Parque Central          ✕  📍   │ ← Con texto y botón limpiar
 ├─────────────────────────────────────┤
 │                                     │
-│  📍 Parque Central                  │ ← Sugerencias de búsqueda
+│  Mis Lugares                        │ ← Sección 1 (siempre visible)
+│                                     │
+│  ⭐ Casa                            │
+│     Calle Principal 123             │
+│                                     │
+│  ⭐ Trabajo                         │
+│     Av. Central 456                 │
+│                                     │
+│  Resultados de búsqueda             │ ← Sección 2 (con búsqueda)
+│                                     │
+│  📍 Parque Central                  │
 │     Centro, Tuxtla Gutiérrez        │
 │                                     │
 │  📍 Parque de la Marimba            │
@@ -143,17 +154,12 @@ IconButton(
 }
 ```
 
-### 5️⃣ Lista Dinámica: Sugerencias o Mis Lugares
+### 5️⃣ Lista Dinámica: Mis Lugares + Resultados de Búsqueda (COMO iOS)
 
 ```kotlin
 LazyColumn {
-    if (suggestions.isNotEmpty()) {
-        // Mostrar resultados de búsqueda
-        items(suggestions) { suggestion ->
-            LocationSuggestionRow(...)
-        }
-    } else if (searchText.isEmpty() && savedPlaces.isNotEmpty()) {
-        // Mostrar "Mis Lugares"
+    // SECCIÓN 1: Mis Lugares (siempre visible si hay lugares guardados)
+    if (savedPlaces.isNotEmpty()) {
         item {
             Text("Mis Lugares", ...)
         }
@@ -161,8 +167,30 @@ LazyColumn {
             SavedPlaceRow(...)
         }
     }
+    
+    // SECCIÓN 2: Resultados de búsqueda (solo si hay búsqueda activa)
+    if (searchText.isNotEmpty() && searchResults.isNotEmpty()) {
+        item {
+            Text("Resultados de búsqueda", ...)
+        }
+        items(searchResults) { suggestion ->
+            LocationSuggestionRow(...)
+        }
+    }
+    
+    // Mensaje si no hay resultados
+    if (searchText.isNotEmpty() && searchResults.isEmpty()) {
+        item {
+            Text("No se encontraron resultados", ...)
+        }
+    }
 }
 ```
+
+**COMPORTAMIENTO:**
+- ✅ Sin búsqueda: Solo "Mis Lugares"
+- ✅ Con búsqueda: "Mis Lugares" + "Resultados de búsqueda"
+- ✅ Búsqueda sin resultados: "Mis Lugares" + mensaje "No se encontraron resultados"
 
 ### 6️⃣ Componentes de Fila
 
@@ -238,6 +266,58 @@ El modal de selección de ubicación en Android ahora es IDÉNTICO al de iOS en:
 - ✅ Funcionalidad
 - ✅ Validaciones
 - ✅ Experiencia de usuario
+
+---
+
+## 🔄 ACTUALIZACIÓN CRÍTICA: Comportamiento de Lista (2026-03-06)
+
+### ❌ ANTES (Incorrecto)
+```kotlin
+if (searchResults.isNotEmpty()) {
+    // Mostrar SOLO resultados de búsqueda
+} else if (searchText.isEmpty() && savedPlaces.isNotEmpty()) {
+    // Mostrar SOLO Mis Lugares
+}
+```
+
+**Problema:** Cuando buscabas, los lugares guardados desaparecían. ❌
+
+### ✅ AHORA (Correcto - Como iOS)
+```kotlin
+// SIEMPRE mostrar Mis Lugares si existen
+if (savedPlaces.isNotEmpty()) {
+    // Sección "Mis Lugares"
+}
+
+// ADEMÁS mostrar resultados de búsqueda si hay búsqueda activa
+if (searchText.isNotEmpty() && searchResults.isNotEmpty()) {
+    // Sección "Resultados de búsqueda"
+}
+```
+
+**Solución:** Ambas secciones son visibles simultáneamente. ✅
+
+### 📊 Comparación Visual
+
+**ANTES:**
+```
+Sin búsqueda:        Con búsqueda:
+┌──────────┐        ┌──────────┐
+│ Mis      │        │ Búsqueda │
+│ Lugares  │   →    │ (solo)   │
+└──────────┘        └──────────┘
+```
+
+**AHORA (iOS Style):**
+```
+Sin búsqueda:        Con búsqueda:
+┌──────────┐        ┌──────────┐
+│ Mis      │        │ Mis      │
+│ Lugares  │   →    │ Lugares  │
+└──────────┘        ├──────────┤
+                    │ Búsqueda │
+                    └──────────┘
+```
 
 ---
 

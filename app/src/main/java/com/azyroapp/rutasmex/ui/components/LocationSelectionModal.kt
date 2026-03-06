@@ -23,10 +23,15 @@ import com.azyroapp.rutasmex.data.model.LocationPoint
  * Características:
  * - Campo de búsqueda con sugerencias en tiempo real
  * - Botón "Mi Ubicación" como icono
- * - Lista scrolleable de sugerencias
- * - Sección "Mis Lugares" cuando no hay búsqueda
+ * - Lista scrolleable que muestra:
+ *   1. "Mis Lugares" (siempre visible si hay lugares guardados)
+ *   2. "Resultados de búsqueda" (cuando hay búsqueda activa)
  * - Validación de ubicaciones duplicadas (< 20 metros)
  * - Botones OK y Cancelar en toolbar
+ * 
+ * COMPORTAMIENTO iOS:
+ * - Sin búsqueda: Solo muestra "Mis Lugares"
+ * - Con búsqueda: Muestra "Mis Lugares" + "Resultados de búsqueda"
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +39,7 @@ fun LocationSelectionModal(
     isSelectingOrigin: Boolean,
     currentLocation: LocationPoint?,
     savedPlaces: List<LocationPoint>,
+    searchResults: List<LocationPoint>,  // Resultados de búsqueda del ViewModel
     origenLocation: LocationPoint?,
     destinoLocation: LocationPoint?,
     onLocationSelected: (LocationPoint) -> Unit,
@@ -44,7 +50,6 @@ fun LocationSelectionModal(
 ) {
     var searchText by remember { mutableStateOf(currentLocation?.name ?: "") }
     var selectedLocation by remember { mutableStateOf(currentLocation) }
-    var suggestions by remember { mutableStateOf<List<LocationPoint>>(emptyList()) }
     var isLoadingLocation by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
     
@@ -140,9 +145,6 @@ fun LocationSelectionModal(
                         // Buscar sugerencias si hay más de 2 caracteres
                         if (it.length > 2) {
                             onSearchPlace(it)
-                            // TODO: Actualizar suggestions con resultados
-                        } else {
-                            suggestions = emptyList()
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -157,7 +159,7 @@ fun LocationSelectionModal(
                         if (searchText.isNotEmpty()) {
                             IconButton(onClick = { 
                                 searchText = ""
-                                suggestions = emptyList()
+                                onSearchPlace("")  // Limpiar resultados
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
@@ -204,35 +206,20 @@ fun LocationSelectionModal(
                 }
             }
             
-            // Lista scrolleable de sugerencias o Mis Lugares
+            // Lista scrolleable: SIEMPRE muestra Mis Lugares + Resultados de búsqueda (como iOS)
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 400.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (suggestions.isNotEmpty()) {
-                    // Mostrar resultados de búsqueda
-                    items(suggestions) { suggestion ->
-                        LocationSuggestionRow(
-                            location = suggestion,
-                            onClick = {
-                                if (validateLocation(suggestion)) {
-                                    selectedLocation = suggestion
-                                    searchText = suggestion.name
-                                    suggestions = emptyList()
-                                    onLocationSelected(suggestion)
-                                    onDismiss()
-                                }
-                            }
-                        )
-                    }
-                } else if (searchText.isEmpty() && savedPlaces.isNotEmpty()) {
-                    // Mostrar "Mis Lugares" cuando no hay búsqueda
+                // SECCIÓN 1: Mis Lugares (siempre visible si hay lugares guardados)
+                if (savedPlaces.isNotEmpty()) {
                     item {
                         Text(
                             text = "Mis Lugares",
                             style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     }
@@ -247,6 +234,44 @@ fun LocationSelectionModal(
                                     onDismiss()
                                 }
                             }
+                        )
+                    }
+                }
+                
+                // SECCIÓN 2: Resultados de búsqueda (solo si hay búsqueda activa)
+                if (searchText.isNotEmpty() && searchResults.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Resultados de búsqueda",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                        )
+                    }
+                    
+                    items(searchResults) { suggestion ->
+                        LocationSuggestionRow(
+                            location = suggestion,
+                            onClick = {
+                                if (validateLocation(suggestion)) {
+                                    selectedLocation = suggestion
+                                    searchText = suggestion.name
+                                    onLocationSelected(suggestion)
+                                    onDismiss()
+                                }
+                            }
+                        )
+                    }
+                }
+                
+                // Mensaje si no hay resultados de búsqueda
+                if (searchText.isNotEmpty() && searchResults.isEmpty()) {
+                    item {
+                        Text(
+                            text = "No se encontraron resultados",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 16.dp)
                         )
                     }
                 }

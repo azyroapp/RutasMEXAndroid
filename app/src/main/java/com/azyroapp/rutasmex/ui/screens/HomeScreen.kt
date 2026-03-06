@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.azyroapp.rutasmex.core.services.LegalDocumentCacheService
 import com.azyroapp.rutasmex.core.services.OnboardingService
+import com.azyroapp.rutasmex.data.model.LocationPoint
 import com.azyroapp.rutasmex.data.model.Route
 import com.azyroapp.rutasmex.ui.components.*
 import com.azyroapp.rutasmex.ui.viewmodel.HomeViewModel
@@ -60,6 +61,7 @@ fun HomeScreen(
     val proximityConfig by viewModel.proximityConfig.collectAsState()
     val calculationMode by viewModel.calculationMode.collectAsState()
     val longPressLocation by viewModel.longPressLocation.collectAsState()
+    val placeSearchResults by viewModel.placeSearchResults.collectAsState()  // Resultados de búsqueda de lugares
     
     // Estados locales para bottom sheets
     var showCitySelector by remember { mutableStateOf(false) }
@@ -406,10 +408,22 @@ fun HomeScreen(
     
     // Modal de selección de ubicación (iOS style)
     if (showLocationSelection) {
+        // Convertir SearchResult a LocationPoint
+        val searchResultsAsLocationPoints = placeSearchResults.map { result ->
+            LocationPoint(
+                id = "${result.latitude},${result.longitude}",
+                name = result.name,
+                latitude = result.latitude,
+                longitude = result.longitude,
+                address = result.address
+            )
+        }
+        
         LocationSelectionModal(
             isSelectingOrigin = isSelectingOrigin,
             currentLocation = if (isSelectingOrigin) origenLocation else destinoLocation,
             savedPlaces = savedPlaces,
+            searchResults = searchResultsAsLocationPoints,
             origenLocation = origenLocation,
             destinoLocation = destinoLocation,
             onLocationSelected = { place ->
@@ -418,15 +432,21 @@ fun HomeScreen(
                 } else {
                     viewModel.setDestino(place)
                 }
+                viewModel.clearPlaceSearchResults()  // Limpiar resultados al seleccionar
             },
             onUseCurrentLocation = {
                 viewModel.useCurrentLocation(isSelectingOrigin)
             },
             onSearchPlace = { query ->
-                viewModel.searchPlace(query)
+                if (query.isEmpty()) {
+                    viewModel.clearPlaceSearchResults()
+                } else {
+                    viewModel.searchPlace(query)
+                }
             },
             onDismiss = {
                 showLocationSelection = false
+                viewModel.clearPlaceSearchResults()  // Limpiar al cerrar
             }
         )
     }
