@@ -327,23 +327,65 @@ class HomeViewModel @Inject constructor(
     
     /**
      * Maneja el tap en el mapa según el modo de selección
+     * Usa geocoding reverso para obtener el nombre del lugar
      */
     fun handleMapTap(latLng: LatLng, locationName: String = "Ubicación seleccionada") {
         when (_selectionMode.value) {
             SelectionMode.SELECTING_ORIGEN -> {
-                val location = LocationPoint.fromLatLng(latLng, locationName)
-                setOrigen(location)
-                _selectionMode.value = SelectionMode.NONE
+                // Usar geocoding reverso para obtener nombre real
+                viewModelScope.launch {
+                    val name = com.azyroapp.rutasmex.core.services.GeocodingService.reverseGeocode(
+                        context = context,
+                        latitude = latLng.latitude,
+                        longitude = latLng.longitude
+                    ).getOrElse { locationName }
+                    
+                    val location = LocationPoint.fromLatLng(latLng, name)
+                    setOrigen(location)
+                    _selectionMode.value = SelectionMode.NONE
+                }
             }
             SelectionMode.SELECTING_DESTINO -> {
-                val location = LocationPoint.fromLatLng(latLng, locationName)
-                setDestino(location)
-                _selectionMode.value = SelectionMode.NONE
+                // Usar geocoding reverso para obtener nombre real
+                viewModelScope.launch {
+                    val name = com.azyroapp.rutasmex.core.services.GeocodingService.reverseGeocode(
+                        context = context,
+                        latitude = latLng.latitude,
+                        longitude = latLng.longitude
+                    ).getOrElse { locationName }
+                    
+                    val location = LocationPoint.fromLatLng(latLng, name)
+                    setDestino(location)
+                    _selectionMode.value = SelectionMode.NONE
+                }
             }
             else -> {
                 // No hacer nada si no está en modo de selección
             }
         }
+    }
+    
+    /**
+     * Maneja el long press en el mapa
+     * Muestra opciones para la ubicación seleccionada
+     */
+    private val _longPressLocation = MutableStateFlow<Pair<LatLng, String>?>(null)
+    val longPressLocation: StateFlow<Pair<LatLng, String>?> = _longPressLocation.asStateFlow()
+    
+    fun handleMapLongPress(latLng: LatLng) {
+        viewModelScope.launch {
+            val name = com.azyroapp.rutasmex.core.services.GeocodingService.reverseGeocode(
+                context = context,
+                latitude = latLng.latitude,
+                longitude = latLng.longitude
+            ).getOrElse { "Ubicación seleccionada" }
+            
+            _longPressLocation.value = Pair(latLng, name)
+        }
+    }
+    
+    fun clearLongPressLocation() {
+        _longPressLocation.value = null
     }
     
     /**
@@ -712,12 +754,51 @@ class HomeViewModel @Inject constructor(
             initialValue = emptyList()
         )
     
+    // Estado de resultados de búsqueda de lugares
+    private val _placeSearchResults = MutableStateFlow<List<com.azyroapp.rutasmex.core.services.SearchResult>>(emptyList())
+    val placeSearchResults: StateFlow<List<com.azyroapp.rutasmex.core.services.SearchResult>> = _placeSearchResults.asStateFlow()
+    
     /**
-     * Busca un lugar por nombre (TODO: implementar con API de geocoding)
+     * Busca un lugar por nombre usando Geocoding
      */
-    fun searchPlace(@Suppress("UNUSED_PARAMETER") query: String) {
-        // TODO: Implementar búsqueda con API de geocoding
-        _errorMessage.value = "Búsqueda de lugares próximamente disponible"
+    fun searchPlace(query: String) {
+        if (query.isBlank()) {
+            _placeSearchResults.value = emptyList()
+            return
+        }
+        
+        viewModelScope.launch {
+            _isLoading.value = true
+            
+            // Usar ubicación actual como bias si está disponible
+            val biasLat = _userLocation.value?.latitude ?: 16.7504034
+            val biasLon = _userLocation.value?.longitude ?: -93.12392021
+            
+            com.azyroapp.rutasmex.core.services.GeocodingService.searchPlaces(
+                context = context,
+                query = query,
+                biasLatitude = biasLat,
+                biasLongitude = biasLon,
+                maxResults = 10
+            ).fold(
+                onSuccess = { results ->
+                    _placeSearchResults.value = results
+                    _isLoading.value = false
+                },
+                onFailure = { error ->
+                    _errorMessage.value = "Error al buscar lugares: ${error.message}"
+                    _placeSearchResults.value = emptyList()
+                    _isLoading.value = false
+                }
+            )
+        }
+    }
+    
+    /**
+     * Limpia los resultados de búsqueda de lugares
+     */
+    fun clearPlaceSearchResults() {
+        _placeSearchResults.value = emptyList()
     }
     
     /**
@@ -1000,23 +1081,34 @@ class HomeViewModel @Inject constructor(
      * Comparte el viaje actual
      */
     fun shareTrip(trip: com.azyroapp.rutasmex.data.model.Trip) {
-        // TODO: Implementar compartir viaje
-        // Por ahora solo un placeholder
         viewModelScope.launch {
-            // Crear texto para compartir
-            val shareText = """
-                🚌 Viaje en RutasMEX
+            try {
+                val shareText = """
+                    🚌 Mi viaje en RutasMEX
+                    
+                    📍 Ruta: ${trip.routeName}
+                    📏 Distancia: ${String.format("%.2f", trip.totalDistance)} km
+                    ⏱️ Duración: ${formatDuration(trip.duration ?: 0L)}
+                    
+                    🟢 Origen: ${trip.originName}
+                    🔴 Destino: ${trip.destinationName}
+                    
+                    ¡Descarga RutasMEX! 🚀
+                    https://play.google.com/store/apps/details?id=com.azyroapp.rutasmex
+                """.trimIndent()
                 
-                Ruta: ${trip.routeName}
-                Distancia: ${String.format("%.2f", trip.totalDistance)} km
-                Duración: ${formatDuration(trip.duration ?: 0L)}
+                val shareIntent = android.content.Intent().apply {
+                    action = android.content.Intent.ACTION_SEND
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                }
                 
-                Origen: ${trip.originName}
-                Destino: ${trip.destinationName}
-            """.trimIndent()
-            
-            // El intent de compartir se manejará desde la UI
-            _errorMessage.value = "Función de compartir próximamente disponible"
+                context.startActivity(
+                    android.content.Intent.createChooser(shareIntent, "Compartir viaje")
+                )
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al compartir viaje: ${e.message}"
+            }
         }
     }
     

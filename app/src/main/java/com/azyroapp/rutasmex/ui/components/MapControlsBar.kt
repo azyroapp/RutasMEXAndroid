@@ -32,6 +32,7 @@ fun MapControlsBar(
     onConfigureRadius: () -> Unit,
     onMapSelection: () -> Unit,
     onSearch: () -> Unit,
+    onTripBannerClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -48,9 +49,7 @@ fun MapControlsBar(
                 distance = distanceResult.distanceToDestination,
                 time = (distanceResult.distanceToDestination / 1000 * 3).toInt(), // Estimación: 3 min por km
                 hasData = true,
-                onClick = {
-                    // TODO: Expandir info detallada
-                }
+                onClick = onTripBannerClick
             )
         }
         

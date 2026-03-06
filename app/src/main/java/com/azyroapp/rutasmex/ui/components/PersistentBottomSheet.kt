@@ -137,7 +137,19 @@ private fun filterRoutes(
         return emptyList()
     }
     
-    // TODO: Implementar filtrado real basado en proximidad
-    // Por ahora retornamos todas las rutas
-    return routes
+    // Radios de búsqueda por defecto (200 metros)
+    val searchRadius = 200.0
+    
+    return routes.filter { route ->
+        val passesOrigin = origen?.let { 
+            route.passesNearPoint(it.latitude, it.longitude, searchRadius)
+        } ?: true
+        
+        val passesDestination = destino?.let {
+            route.passesNearPoint(it.latitude, it.longitude, searchRadius)
+        } ?: true
+        
+        // La ruta debe pasar cerca de ambos puntos (si están definidos)
+        passesOrigin && passesDestination
+    }
 }

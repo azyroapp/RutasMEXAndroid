@@ -28,7 +28,8 @@ fun MapView(
     mapType: MapType,
     onMapClick: (LatLng) -> Unit,
     onMapLongClick: (LatLng) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLocationPermissionGranted: Boolean = false
 ) {
     // Estado del mapa
     val tuxtla = LatLng(16.7504034, -93.12392021)
@@ -48,14 +49,14 @@ fun MapView(
         )
     }
     
-    val properties by remember(mapType) {
+    val properties by remember(mapType, isLocationPermissionGranted) {
         mutableStateOf(
             MapProperties(
                 mapType = when (mapType) {
                     MapType.NORMAL -> com.google.maps.android.compose.MapType.NORMAL
                     MapType.SATELLITE -> com.google.maps.android.compose.MapType.SATELLITE
                 },
-                isMyLocationEnabled = false // Se habilitará con permisos
+                isMyLocationEnabled = isLocationPermissionGranted
             )
         )
     }

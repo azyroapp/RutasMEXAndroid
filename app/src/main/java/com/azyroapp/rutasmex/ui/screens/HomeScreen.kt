@@ -57,6 +57,7 @@ fun HomeScreen(
     val destinationRadius by viewModel.destinationRadius.collectAsState()
     val proximityConfig by viewModel.proximityConfig.collectAsState()
     val calculationMode by viewModel.calculationMode.collectAsState()
+    val longPressLocation by viewModel.longPressLocation.collectAsState()
     
     // Estados locales para bottom sheets
     var showCitySelector by remember { mutableStateOf(false) }
@@ -73,6 +74,11 @@ fun HomeScreen(
     var showArrivalModal by remember { mutableStateOf(false) }
     var showProximityConfig by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showMapLocationOptions by remember { mutableStateOf(false) }
+    var isLocationPermissionGranted by remember { mutableStateOf(false) }
+    var showEditPlace by remember { mutableStateOf(false) }
+    var placeToEdit by remember { mutableStateOf<com.azyroapp.rutasmex.data.model.SavedPlace?>(null) }
+    var showTripDetail by remember { mutableStateOf(false) }
     
     // Permisos de ubicación
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -80,6 +86,8 @@ fun HomeScreen(
     ) { permissions ->
         val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                      permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        
+        isLocationPermissionGranted = granted
         
         if (!granted) {
             Toast.makeText(
@@ -98,6 +106,13 @@ fun HomeScreen(
                 Manifest.permission.ACCESS_COARSE_LOCATION
             )
         )
+    }
+    
+    // Mostrar modal de opciones cuando hay long press
+    LaunchedEffect(longPressLocation) {
+        if (longPressLocation != null) {
+            showMapLocationOptions = true
+        }
     }
     
     // Mostrar resultados de búsqueda cuando hay rutas encontradas
@@ -180,13 +195,12 @@ fun HomeScreen(
                 origenLocation = origenLocation,
                 destinoLocation = destinoLocation,
                 mapType = mapType,
+                isLocationPermissionGranted = isLocationPermissionGranted,
                 onMapClick = { latLng ->
-                    // TODO: Implementar geocoding reverso
-                    viewModel.handleMapTap(latLng, "Ubicación seleccionada")
+                    viewModel.handleMapTap(latLng)
                 },
                 onMapLongClick = { latLng ->
-                    // TODO: Mostrar diálogo de opciones
-                    viewModel.handleMapTap(latLng, "Ubicación seleccionada")
+                    viewModel.handleMapLongPress(latLng)
                 }
             )
             
@@ -232,6 +246,9 @@ fun HomeScreen(
                     },
                     onSearch = {
                         showRouteSearch = true
+                    },
+                    onTripBannerClick = {
+                        showTripDetail = true
                     }
                 )
                 
@@ -499,20 +516,12 @@ fun HomeScreen(
                 ).show()
             },
             onEditPlace = { place ->
-                // TODO: Implementar edición de lugar
-                Toast.makeText(
-                    context,
-                    "Edición próximamente disponible",
-                    Toast.LENGTH_SHORT
-                ).show()
+                placeToEdit = place
+                showEditPlace = true
             },
             onAddPlace = {
-                // TODO: Implementar agregar lugar
-                Toast.makeText(
-                    context,
-                    "Agregar lugar próximamente disponible",
-                    Toast.LENGTH_SHORT
-                ).show()
+                placeToEdit = null
+                showEditPlace = true
             },
             onDismiss = {
                 showSavedPlacesManager = false
@@ -616,5 +625,121 @@ fun HomeScreen(
                 }
             }
         )
+    }
+    
+    // Modal de opciones de ubicación (long press en mapa)
+    if (showMapLocationOptions && longPressLocation != null) {
+        val (latLng, name) = longPressLocation!!
+        
+        MapLocationOptionsModal(
+            location = latLng,
+            locationName = name,
+            onSetAsOrigin = {
+                val location = com.azyroapp.rutasmex.data.model.LocationPoint.fromLatLng(latLng, name)
+                viewModel.setOrigen(location)
+                viewModel.clearLongPressLocation()
+            },
+            onSetAsDestination = {
+                val location = com.azyroapp.rutasmex.data.model.LocationPoint.fromLatLng(latLng, name)
+                viewModel.setDestino(location)
+                viewModel.clearLongPressLocation()
+            },
+            onSavePlace = {
+                val location = com.azyroapp.rutasmex.data.model.LocationPoint.fromLatLng(latLng, name)
+                viewModel.savePlaceFromLocation(location, com.azyroapp.rutasmex.data.model.PlaceCategory.OTHER)
+                Toast.makeText(context, "Lugar guardado", Toast.LENGTH_SHORT).show()
+                viewModel.clearLongPressLocation()
+            },
+            onShareLocation = {
+                val shareText = """
+                    📍 Ubicación compartida desde RutasMEX
+                    
+                    ${name}
+                    
+                    Coordenadas:
+                    Lat: ${String.format("%.6f", latLng.latitude)}
+                    Lon: ${String.format("%.6f", latLng.longitude)}
+                    
+                    Ver en Google Maps:
+                    https://maps.google.com/?q=${latLng.latitude},${latLng.longitude}
+                """.trimIndent()
+                
+                val shareIntent = android.content.Intent().apply {
+                    action = android.content.Intent.ACTION_SEND
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                }
+                context.startActivity(android.content.Intent.createChooser(shareIntent, "Compartir ubicación"))
+                viewModel.clearLongPressLocation()
+            },
+            onDismiss = {
+                showMapLocationOptions = false
+                viewModel.clearLongPressLocation()
+            }
+        )
+    }
+    
+    // Modal de editar/agregar lugar
+    if (showEditPlace) {
+        EditPlaceModal(
+            place = placeToEdit,
+            onSave = { name, lat, lon, category ->
+                if (placeToEdit != null) {
+                    // Editar lugar existente
+                    val updatedPlace = placeToEdit!!.copy(
+                        name = name,
+                        latitude = lat,
+                        longitude = lon,
+                        category = category
+                    )
+                    viewModel.updateSavedPlace(updatedPlace)
+                    Toast.makeText(context, "Lugar actualizado", Toast.LENGTH_SHORT).show()
+                } else {
+                    // Agregar nuevo lugar
+                    val newPlace = com.azyroapp.rutasmex.data.model.SavedPlace.create(
+                        name = name,
+                        latitude = lat,
+                        longitude = lon,
+                        category = category
+                    )
+                    viewModel.savePlaceFromLocation(
+                        com.azyroapp.rutasmex.data.model.LocationPoint(
+                            id = newPlace.id,
+                            name = name,
+                            latitude = lat,
+                            longitude = lon
+                        ),
+                        category
+                    )
+                    Toast.makeText(context, "Lugar guardado", Toast.LENGTH_SHORT).show()
+                }
+                showEditPlace = false
+                placeToEdit = null
+            },
+            onDismiss = {
+                showEditPlace = false
+                placeToEdit = null
+            }
+        )
+    }
+    
+    // Modal de detalle del viaje (expandido)
+    if (showTripDetail && isTripActive) {
+        val tripResult = distanceResult
+        val trip = currentTrip
+        
+        if (tripResult != null && trip != null) {
+            TripDetailExpandedModal(
+                distanceResult = tripResult,
+                routeName = trip.routeName,
+                onStopTrip = {
+                    showArrivalModal = true
+                    showTripDetail = false
+                },
+                onDismiss = {
+                    showTripDetail = false
+                }
+            )
+        }
     }
 }
