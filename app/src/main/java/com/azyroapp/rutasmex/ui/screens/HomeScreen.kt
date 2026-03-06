@@ -404,12 +404,15 @@ fun HomeScreen(
         )
     }
     
-    // Modal de selección de ubicación
+    // Modal de selección de ubicación (iOS style)
     if (showLocationSelection) {
         LocationSelectionModal(
-            title = if (isSelectingOrigin) "Seleccionar Origen" else "Seleccionar Destino",
+            isSelectingOrigin = isSelectingOrigin,
+            currentLocation = if (isSelectingOrigin) origenLocation else destinoLocation,
             savedPlaces = savedPlaces,
-            onPlaceSelected = { place ->
+            origenLocation = origenLocation,
+            destinoLocation = destinoLocation,
+            onLocationSelected = { place ->
                 if (isSelectingOrigin) {
                     viewModel.setOrigen(place)
                 } else {
@@ -418,13 +421,6 @@ fun HomeScreen(
             },
             onUseCurrentLocation = {
                 viewModel.useCurrentLocation(isSelectingOrigin)
-            },
-            onSelectOnMap = {
-                if (isSelectingOrigin) {
-                    viewModel.startSelectingOrigen()
-                } else {
-                    viewModel.startSelectingDestino()
-                }
             },
             onSearchPlace = { query ->
                 viewModel.searchPlace(query)

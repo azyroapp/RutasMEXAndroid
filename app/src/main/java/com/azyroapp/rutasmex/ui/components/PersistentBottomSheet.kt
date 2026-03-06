@@ -64,7 +64,7 @@ fun PersistentBottomSheet(
     val screenHeight = configuration.screenHeightDp.dp
     
     // Alturas según el estado
-    val collapsedHeight = 80.dp // Solo botones
+    val collapsedHeight = 70.dp // Reducido para que quepa todo
     val expandedHeight = screenHeight * 0.5f // 50% de la pantalla
     
     // Umbral para cambiar de estado (30% de la diferencia)
@@ -96,7 +96,7 @@ fun PersistentBottomSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
-                .padding(top = 4.dp, bottom = 16.dp)
+                .padding(top = 2.dp, bottom = 8.dp)  // Reducido para estado collapsed
         ) {
             // Drag handle con gesture
             Box(

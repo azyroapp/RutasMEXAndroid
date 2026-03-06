@@ -53,7 +53,7 @@ fun LocationInputRow(
         // Botón de origen
         LocationButton(
             text = origenLocation?.name ?: "",
-            placeholder = "ORIGEN",
+            placeholder = "Origen",
             position = LocationButtonPosition.LEADING,
             onClick = onOriginTap,
             enabled = !areButtonsDisabled,
@@ -88,7 +88,7 @@ fun LocationInputRow(
         // Botón de destino
         LocationButton(
             text = destinoLocation?.name ?: "",
-            placeholder = "DESTINO",
+            placeholder = "Destino",
             position = LocationButtonPosition.TRAILING,
             onClick = onDestinationTap,
             enabled = !areButtonsDisabled,
@@ -137,18 +137,18 @@ fun LocationButton(
         enabled = enabled,
         modifier = modifier,
         shape = shape,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-        tonalElevation = 2.dp,
-        shadowElevation = 4.dp
+        color = MaterialTheme.colorScheme.surface,  // Sin alpha para mejor visibilidad
+        tonalElevation = 4.dp,  // Aumentado para mejor contraste
+        shadowElevation = 6.dp  // Aumentado para mejor definición
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)  // Reducido de 12dp a 8dp
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = if (text.isEmpty()) placeholder else text,
+                text = if (text.isEmpty()) placeholder.uppercase() else text,
                 fontSize = if (text.isEmpty()) 10.sp else 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = if (enabled) {
@@ -216,9 +216,9 @@ fun CircularIconButton(
         enabled = enabled,
         modifier = modifier.size(50.dp),
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-        tonalElevation = 2.dp,
-        shadowElevation = 4.dp
+        color = MaterialTheme.colorScheme.surface,  // Sin alpha para mejor visibilidad
+        tonalElevation = 4.dp,  // Aumentado para mejor contraste
+        shadowElevation = 6.dp  // Aumentado para mejor definición
     ) {
         Box(
             contentAlignment = Alignment.Center,
