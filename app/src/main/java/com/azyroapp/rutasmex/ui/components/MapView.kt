@@ -113,7 +113,7 @@ fun MapView(
         )
     }
     
-    // JSON para estilo oscuro del mapa (Google Maps Aubergine Style)
+    // JSON para estilo oscuro del mapa (Google Maps Aubergine Style - Sin building)
     val darkMapStyle = remember {
         """
         [
@@ -160,11 +160,29 @@ fun MapView(
             ]
           },
           {
+            "featureType": "administrative.locality",
+            "elementType": "labels.text.fill",
+            "stylers": [
+              {
+                "color": "#ffffff"
+              }
+            ]
+          },
+          {
             "featureType": "administrative.province",
             "elementType": "geometry.stroke",
             "stylers": [
               {
                 "color": "#4b6878"
+              }
+            ]
+          },
+          {
+            "featureType": "landscape.man_made",
+            "elementType": "geometry.fill",
+            "stylers": [
+              {
+                "color": "#16233d"
               }
             ]
           },
