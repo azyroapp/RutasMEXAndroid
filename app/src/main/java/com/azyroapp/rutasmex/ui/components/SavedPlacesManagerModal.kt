@@ -1,26 +1,37 @@
 package com.azyroapp.rutasmex.ui.components
 
+import androidx.compose.foundation.background
+import kotlin.math.absoluteValue
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.azyroapp.rutasmex.data.model.PlaceCategory
 import com.azyroapp.rutasmex.data.model.SavedPlace
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.*
 
 /**
  * Modal para gestionar lugares guardados
- * Replica el comportamiento de iOS SavedPlacesManagerModal
+ * Paridad 100% con iOS SavedPlacesManagerModal
+ * 
+ * Características:
+ * - Modo lista: Muestra lugares guardados
+ * - Modo agregar: Mapa interactivo para seleccionar ubicación
+ * - Snackbar informativo al entrar en modo agregar
+ * - Círculos con iniciales y colores dinámicos
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,211 +44,311 @@ fun SavedPlacesManagerModal(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    val keyboardController = LocalSoftwareKeyboardController.current
+    // Estado: modo lista o modo agregar
+    var isAddingPlace by remember { mutableStateOf(false) }
+    var selectedCoordinate by remember { mutableStateOf<LatLng?>(null) }
+    var showPlaceEditor by remember { mutableStateOf(false) }
     
-    // Filtrar lugares según búsqueda
-    val filteredPlaces = remember(places, searchQuery) {
-        if (searchQuery.isEmpty()) {
-            places
+    // Snackbar
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Mostrar snackbar al entrar en modo agregar
+    LaunchedEffect(isAddingPlace) {
+        if (isAddingPlace) {
+            snackbarHostState.showSnackbar(
+                message = "Toca el mapa para marcar tu lugar",
+                duration = SnackbarDuration.Indefinite
+            )
         } else {
-            places.filter { place ->
-                place.name.contains(searchQuery, ignoreCase = true) ||
-                place.address?.contains(searchQuery, ignoreCase = true) == true
-            }
+            snackbarHostState.currentSnackbarData?.dismiss()
         }
     }
     
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (!isAddingPlace) {
+                onDismiss()
+            }
+        },
         modifier = modifier
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp)
-        ) {
-            // Título con contador
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Lugares Guardados",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                
-                if (places.isNotEmpty()) {
-                    Surface(
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
-                        Text(
-                            text = "${places.size}",
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            }
-            
-            // Barra de búsqueda
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                placeholder = { Text("Buscar lugar...") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null
+        Scaffold(
+            snackbarHost = {
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier.padding(16.dp)
+                ) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
+                }
+            },
+            topBar = {
+                // Top bar con título y botones
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = if (isAddingPlace) "Seleccionar Ubicación" else "Mis Lugares",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            if (isAddingPlace) {
+                                // Cancelar modo agregar
+                                isAddingPlace = false
+                                selectedCoordinate = null
+                            } else {
+                                // Cerrar modal
+                                onDismiss()
+                            }
+                        }) {
                             Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Limpiar"
+                                imageVector = Icons.Default.Close,
+                                contentDescription = if (isAddingPlace) "Cancelar" else "Cerrar"
                             )
                         }
+                    },
+                    actions = {
+                        if (!isAddingPlace) {
+                            IconButton(onClick = {
+                                isAddingPlace = true
+                                selectedCoordinate = null
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Agregar lugar"
+                                )
+                            }
+                        }
                     }
-                },
-                keyboardOptions = KeyboardOptions(
-                    imeAction = ImeAction.Search
-                ),
-                keyboardActions = KeyboardActions(
-                    onSearch = {
-                        keyboardController?.hide()
-                    }
-                ),
-                singleLine = true
-            )
-            
-            // Botón agregar nuevo
-            Button(
-                onClick = onAddPlace,
+                )
+            }
+        ) { paddingValues ->
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                if (isAddingPlace) {
+                    // Modo agregar: Mapa interactivo
+                    MapForPlaceSelection(
+                        selectedCoordinate = selectedCoordinate,
+                        onMapClick = { latLng ->
+                            selectedCoordinate = latLng
+                            showPlaceEditor = true
+                        }
+                    )
+                } else {
+                    // Modo lista: Lugares guardados
+                    PlacesList(
+                        places = places,
+                        onPlaceSelected = {
+                            onPlaceSelected(it)
+                            onDismiss()
+                        },
+                        onEditPlace = onEditPlace,
+                        onDeletePlace = onDeletePlace
+                    )
+                }
+            }
+        }
+    }
+    
+    // Modal de editor de lugar
+    if (showPlaceEditor && selectedCoordinate != null) {
+        EditPlaceModal(
+            place = null, // Nuevo lugar
+            onSave = { name, lat, lon, category ->
+                // Crear nuevo lugar
+                val newPlace = SavedPlace.create(
+                    name = name,
+                    latitude = lat,
+                    longitude = lon,
+                    category = category
+                )
+                onPlaceSelected(newPlace)
+                
+                // Salir del modo agregar
+                isAddingPlace = false
+                selectedCoordinate = null
+                showPlaceEditor = false
+            },
+            onDismiss = {
+                showPlaceEditor = false
+            }
+        )
+    }
+}
+
+/**
+ * Mapa para seleccionar ubicación de nuevo lugar
+ */
+@Composable
+private fun MapForPlaceSelection(
+    selectedCoordinate: LatLng?,
+    onMapClick: (LatLng) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // Posición inicial: Tuxtla Gutiérrez
+    val tuxtla = LatLng(16.7504034, -93.12392021)
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(tuxtla, 13f)
+    }
+    
+    GoogleMap(
+        modifier = modifier.fillMaxSize(),
+        cameraPositionState = cameraPositionState,
+        onMapClick = onMapClick
+    ) {
+        // Mostrar marcador si hay coordenada seleccionada
+        selectedCoordinate?.let { coordinate ->
+            Marker(
+                state = MarkerState(position = coordinate),
+                title = "Nuevo lugar"
+            )
+        }
+    }
+}
+
+/**
+ * Lista de lugares guardados
+ */
+@Composable
+private fun PlacesList(
+    places: List<SavedPlace>,
+    onPlaceSelected: (SavedPlace) -> Unit,
+    onEditPlace: (SavedPlace) -> Unit,
+    onDeletePlace: (SavedPlace) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (places.isEmpty()) {
+        // Estado vacío
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    imageVector = Icons.Default.LocationOff,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Agregar Nuevo Lugar")
+                Text(
+                    text = "No tienes lugares guardados",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Toca el botón + para agregar tu primer lugar",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            
-            // Lista de lugares
-            if (filteredPlaces.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (searchQuery.isEmpty()) {
-                                Icons.Default.LocationOff
-                            } else {
-                                Icons.Default.SearchOff
-                            },
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = if (searchQuery.isEmpty()) {
-                                "No hay lugares guardados"
-                            } else {
-                                "No se encontraron lugares"
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 400.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filteredPlaces) { place ->
-                        SavedPlaceItem(
-                            place = place,
-                            onSelect = {
-                                onPlaceSelected(place)
-                                onDismiss()
-                            },
-                            onEdit = {
-                                onEditPlace(place)
-                            },
-                            onDelete = {
-                                onDeletePlace(place)
-                            }
-                        )
-                    }
-                }
+        }
+    } else {
+        // Lista de lugares
+        LazyColumn(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            items(places) { place ->
+                PlaceRow(
+                    place = place,
+                    onSelect = { onPlaceSelected(place) },
+                    onEdit = { onEditPlace(place) },
+                    onDelete = { onDeletePlace(place) }
+                )
             }
         }
     }
 }
 
 /**
- * Item de lugar guardado
+ * Fila de lugar guardado con círculo de iniciales
  */
 @Composable
-private fun SavedPlaceItem(
+private fun PlaceRow(
     place: SavedPlace,
     onSelect: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var showDeleteConfirmation by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    
+    // Generar iniciales
+    val initials = remember(place.name) {
+        val words = place.name.split(" ").filter { it.isNotEmpty() }
+        when {
+            words.size >= 2 -> {
+                "${words[0].first().uppercaseChar()}${words[1].first().uppercaseChar()}"
+            }
+            words.size == 1 -> {
+                words[0].take(2).uppercase()
+            }
+            else -> "??"
+        }
+    }
+    
+    // Color dinámico basado en el hash del ID
+    val dynamicColor = remember(place.id) {
+        val colors = listOf(
+            Color(0xFF2196F3), // Blue
+            Color(0xFF4CAF50), // Green
+            Color(0xFFFF9800), // Orange
+            Color(0xFF9C27B0), // Purple
+            Color(0xFFF44336), // Red
+            Color(0xFFE91E63), // Pink
+            Color(0xFF00BCD4), // Teal
+            Color(0xFF3F51B5)  // Indigo
+        )
+        val colorIndex = place.id.hashCode().absoluteValue % colors.size
+        colors[colorIndex]
+    }
     
     Surface(
         onClick = onSelect,
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 1.dp
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icono según categoría
-            Icon(
-                imageVector = when (place.category) {
-                    PlaceCategory.HOME -> Icons.Default.Home
-                    PlaceCategory.WORK -> Icons.Default.Work
-                    PlaceCategory.SCHOOL -> Icons.Default.School
-                    PlaceCategory.FAVORITE -> Icons.Default.Star
-                    PlaceCategory.OTHER -> Icons.Default.Place
-                },
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
+            // Círculo con iniciales
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(
+                        color = dynamicColor.copy(alpha = 0.2f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = initials,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = dynamicColor
+                )
+            }
             
             // Información del lugar
             Column(
@@ -247,6 +358,7 @@ private fun SavedPlaceItem(
                 Text(
                     text = place.name,
                     style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -260,70 +372,19 @@ private fun SavedPlaceItem(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                
-                Text(
-                    text = "${place.latitude}, ${place.longitude}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                // Contador de usos
-                if (place.useCount > 0) {
-                    Text(
-                        text = "Usado ${place.useCount} veces",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
             }
             
-            // Menú de opciones
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Opciones"
-                    )
-                }
-                
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Editar") },
-                        onClick = {
-                            showMenu = false
-                            onEdit()
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = null
-                            )
-                        }
-                    )
-                    
-                    DropdownMenuItem(
-                        text = { Text("Eliminar") },
-                        onClick = {
-                            showMenu = false
-                            showDeleteConfirmation = true
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    )
-                }
-            }
+            // Icono de chevron
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
     
-    // Diálogo de confirmación
+    // Diálogo de confirmación de eliminación
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },

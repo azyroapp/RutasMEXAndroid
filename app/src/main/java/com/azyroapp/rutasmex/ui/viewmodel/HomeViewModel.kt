@@ -570,22 +570,26 @@ class HomeViewModel @Inject constructor(
     val tripHistory = tripDao.getRecentTrips(20)
     
     /**
-     * Inicia un viaje
+     * Inicia un viaje (paridad iOS)
+     * Valida solo: origen, destino y ruta activa
      */
     fun startTrip() {
         val origen = _origenLocation.value
         val destino = _destinoLocation.value
         val route = _activeRoute.value
         val city = _currentCity.value
-        val result = _distanceResult.value
         
-        if (origen == null || destino == null || route == null || city == null || result == null) {
+        // Validación mínima (como iOS)
+        if (origen == null || destino == null || route == null || city == null) {
             _errorMessage.value = "Faltan datos para iniciar el viaje"
             return
         }
         
         viewModelScope.launch {
             try {
+                // Usar distancia inicial de 0 si no hay resultado calculado aún
+                val initialDistance = _distanceResult.value?.totalDistance ?: 0.0
+                
                 val trip = com.azyroapp.rutasmex.data.model.Trip(
                     cityId = city.id,
                     cityName = city.name,
@@ -598,7 +602,7 @@ class HomeViewModel @Inject constructor(
                     destinationLongitude = destino.longitude,
                     destinationName = destino.name,
                     startTime = java.util.Date(),
-                    totalDistance = result.totalDistance,
+                    totalDistance = initialDistance,
                     calculationMode = _calculationMode.value.name
                 )
                 
