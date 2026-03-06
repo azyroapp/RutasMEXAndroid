@@ -16,6 +16,59 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.PI
+
+/**
+ * Genera puntos para dibujar un círculo punteado
+ * @param center Centro del círculo
+ * @param radius Radio en metros
+ * @param segments Número de segmentos (más = más suave)
+ * @return Lista de segmentos de línea para crear efecto punteado
+ */
+private fun generateDashedCircleSegments(
+    center: LatLng,
+    radius: Double,
+    segments: Int = 60
+): List<List<LatLng>> {
+    val earthRadius = 6371000.0 // Radio de la Tierra en metros
+    val segmentsList = mutableListOf<List<LatLng>>()
+    
+    // Generar puntos del círculo
+    val points = mutableListOf<LatLng>()
+    for (i in 0..segments) {
+        val angle = 2 * PI * i / segments
+        
+        // Calcular offset en grados
+        val latOffset = (radius / earthRadius) * (180 / PI) * cos(angle)
+        val lonOffset = (radius / earthRadius) * (180 / PI) * sin(angle) / 
+                       cos(center.latitude * PI / 180)
+        
+        val lat = center.latitude + latOffset
+        val lon = center.longitude + lonOffset
+        
+        points.add(LatLng(lat, lon))
+    }
+    
+    // Crear segmentos punteados (dibujar cada 2 segmentos, saltar 1)
+    var i = 0
+    while (i < points.size - 1) {
+        // Dibujar 2 segmentos
+        val dashSegment = mutableListOf<LatLng>()
+        for (j in 0..2) {
+            if (i + j < points.size) {
+                dashSegment.add(points[i + j])
+            }
+        }
+        if (dashSegment.size >= 2) {
+            segmentsList.add(dashSegment)
+        }
+        i += 4 // Saltar para crear el espacio (dash + gap)
+    }
+    
+    return segmentsList
+}
 
 /**
  * Componente de mapa con Google Maps Compose
@@ -133,32 +186,37 @@ fun MapView(
             
             // Círculos de proximidad (solo si está habilitado)
             if (showProximityCircles) {
-                // Círculo Far (rojo claro)
-                Circle(
-                    center = destinoLatLng,
-                    radius = proximityFarRadius,
-                    fillColor = Color(0x10FF6B6B), // Rojo claro 6% opacidad
-                    strokeColor = Color(0xFFFF6B6B), // Rojo claro
-                    strokeWidth = 3f
-                )
+                // Generar segmentos punteados para cada círculo
+                val farSegments = generateDashedCircleSegments(destinoLatLng, proximityFarRadius)
+                val mediumSegments = generateDashedCircleSegments(destinoLatLng, proximityMediumRadius)
+                val nearSegments = generateDashedCircleSegments(destinoLatLng, proximityNearRadius)
                 
-                // Círculo Medium (amarillo)
-                Circle(
-                    center = destinoLatLng,
-                    radius = proximityMediumRadius,
-                    fillColor = Color(0x10FFA500), // Amarillo 6% opacidad
-                    strokeColor = Color(0xFFFFA500), // Amarillo
-                    strokeWidth = 3f
-                )
+                // Círculo Far (rojo claro) - punteado
+                farSegments.forEach { segment ->
+                    Polyline(
+                        points = segment,
+                        color = Color(0xFFFF6B6B), // Rojo claro
+                        width = 3f
+                    )
+                }
                 
-                // Círculo Near (verde)
-                Circle(
-                    center = destinoLatLng,
-                    radius = proximityNearRadius,
-                    fillColor = Color(0x1000FF00), // Verde 6% opacidad
-                    strokeColor = Color(0xFF00FF00), // Verde
-                    strokeWidth = 3f
-                )
+                // Círculo Medium (amarillo) - punteado
+                mediumSegments.forEach { segment ->
+                    Polyline(
+                        points = segment,
+                        color = Color(0xFFFFA500), // Amarillo
+                        width = 3f
+                    )
+                }
+                
+                // Círculo Near (verde) - punteado
+                nearSegments.forEach { segment ->
+                    Polyline(
+                        points = segment,
+                        color = Color(0xFF00FF00), // Verde
+                        width = 3f
+                    )
+                }
             }
             
             // Marcador de destino
