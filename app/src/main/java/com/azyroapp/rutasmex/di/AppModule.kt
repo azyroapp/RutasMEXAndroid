@@ -2,6 +2,8 @@ package com.azyroapp.rutasmex.di
 
 import android.content.Context
 import com.azyroapp.rutasmex.data.local.AppDatabase
+import com.azyroapp.rutasmex.data.local.FavoriteSearchDao
+import com.azyroapp.rutasmex.data.local.SavedPlaceDao
 import com.azyroapp.rutasmex.data.local.TripDao
 import com.azyroapp.rutasmex.data.repository.RouteRepository
 import dagger.Module
@@ -38,6 +40,18 @@ object AppModule {
     @Singleton
     fun provideTripDao(database: AppDatabase): TripDao {
         return database.tripDao()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideFavoriteSearchDao(database: AppDatabase): FavoriteSearchDao {
+        return database.favoriteSearchDao()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideSavedPlaceDao(database: AppDatabase): SavedPlaceDao {
+        return database.savedPlaceDao()
     }
     
     @Provides

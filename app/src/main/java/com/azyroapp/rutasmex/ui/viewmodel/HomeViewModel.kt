@@ -7,9 +7,11 @@ import com.azyroapp.rutasmex.core.services.RouteDistanceCalculationService
 import com.azyroapp.rutasmex.core.services.TripTrackingHelper
 import com.azyroapp.rutasmex.data.model.City
 import com.azyroapp.rutasmex.data.model.DistanceCalculationMode
+import com.azyroapp.rutasmex.data.model.FavoriteSearch
 import com.azyroapp.rutasmex.data.model.LocationPoint
 import com.azyroapp.rutasmex.data.model.Route
 import com.azyroapp.rutasmex.data.model.RouteDistanceResult
+import com.azyroapp.rutasmex.data.model.SavedPlace
 import com.azyroapp.rutasmex.data.repository.RouteRepository
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,6 +19,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -28,6 +32,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val repository: RouteRepository,
     private val tripDao: com.azyroapp.rutasmex.data.local.TripDao,
+    private val favoriteSearchDao: com.azyroapp.rutasmex.data.local.FavoriteSearchDao,
+    private val savedPlaceDao: com.azyroapp.rutasmex.data.local.SavedPlaceDao,
     private val preferencesManager: com.azyroapp.rutasmex.data.preferences.PreferencesManager,
     @ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
@@ -91,6 +97,8 @@ class HomeViewModel @Inject constructor(
     init {
         loadCities()
         loadPreferences()
+        loadSearchRadii()
+        loadProximityConfig()
     }
     
     /**
@@ -656,6 +664,359 @@ class HomeViewModel @Inject constructor(
             } catch (e: Exception) {
                 _errorMessage.value = "Error al limpiar historial: ${e.message}"
             }
+        }
+    }
+    
+    // ========== FAVORITES ==========
+    
+    // Estado de favorito
+    private val _isFavorite = MutableStateFlow(false)
+    val isFavorite: StateFlow<Boolean> = _isFavorite.asStateFlow()
+    
+    /**
+     * Marca/desmarca la búsqueda actual como favorita
+     */
+    fun toggleFavorite() {
+        _isFavorite.value = !_isFavorite.value
+        
+        // TODO: Guardar en base de datos cuando se implemente FavoriteSearchService
+        viewModelScope.launch {
+            if (_isFavorite.value) {
+                // Guardar favorito
+                preferencesManager.saveLastFavorite(
+                    origenLocation.value?.name ?: "",
+                    destinoLocation.value?.name ?: ""
+                )
+            }
+        }
+    }
+    
+    // ========== SAVED PLACES ==========
+    
+    // Lugares guardados desde base de datos
+    val savedPlaces: StateFlow<List<SavedPlace>> = savedPlaceDao.getAllPlaces()
+        .stateIn(
+            scope = viewModelScope,
+            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+    
+    /**
+     * Convierte SavedPlace a LocationPoint para compatibilidad
+     */
+    val savedPlacesAsLocationPoints: StateFlow<List<LocationPoint>> = savedPlaces
+        .map { places -> places.map { it.toLocationPoint() } }
+        .stateIn(
+            scope = viewModelScope,
+            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+    
+    /**
+     * Busca un lugar por nombre (TODO: implementar con API de geocoding)
+     */
+    fun searchPlace(@Suppress("UNUSED_PARAMETER") query: String) {
+        // TODO: Implementar búsqueda con API de geocoding
+        _errorMessage.value = "Búsqueda de lugares próximamente disponible"
+    }
+    
+    /**
+     * Usa la ubicación actual del dispositivo
+     */
+    fun useCurrentLocation(isOrigin: Boolean) {
+        val location = _userLocation.value
+        
+        if (location != null) {
+            val locationPoint = LocationPoint(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "Mi ubicación",
+                latitude = location.latitude,
+                longitude = location.longitude
+            )
+            
+            if (isOrigin) {
+                setOrigen(locationPoint)
+            } else {
+                setDestino(locationPoint)
+            }
+        } else {
+            _errorMessage.value = "No se pudo obtener la ubicación actual"
+        }
+    }
+    
+    /**
+     * Guarda un nuevo lugar
+     */
+    fun savePlaceFromLocation(location: LocationPoint, category: com.azyroapp.rutasmex.data.model.PlaceCategory) {
+        viewModelScope.launch {
+            try {
+                val place = com.azyroapp.rutasmex.data.model.SavedPlace.create(
+                    name = location.name,
+                    latitude = location.latitude,
+                    longitude = location.longitude,
+                    category = category
+                )
+                savedPlaceDao.insertPlace(place)
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al guardar lugar: ${e.message}"
+            }
+        }
+    }
+    
+    /**
+     * Elimina un lugar guardado
+     */
+    fun deleteSavedPlace(place: SavedPlace) {
+        viewModelScope.launch {
+            try {
+                savedPlaceDao.deletePlace(place)
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al eliminar lugar: ${e.message}"
+            }
+        }
+    }
+    
+    /**
+     * Actualiza un lugar guardado
+     */
+    fun updateSavedPlace(place: SavedPlace) {
+        viewModelScope.launch {
+            try {
+                savedPlaceDao.updatePlace(place)
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al actualizar lugar: ${e.message}"
+            }
+        }
+    }
+    
+    /**
+     * Incrementa el contador de uso de un lugar
+     */
+    fun incrementPlaceUseCount(placeId: String) {
+        viewModelScope.launch {
+            try {
+                savedPlaceDao.incrementUseCount(placeId, java.util.Date())
+            } catch (e: Exception) {
+                // Silencioso, no es crítico
+            }
+        }
+    }
+    
+    // ========== FAVORITE SEARCHES ==========
+    
+    // Búsquedas favoritas desde base de datos
+    val favoriteSearches: StateFlow<List<FavoriteSearch>> = favoriteSearchDao.getAllFavorites()
+        .stateIn(
+            scope = viewModelScope,
+            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+    
+    /**
+     * Guarda la búsqueda actual como favorita
+     */
+    fun saveFavoriteSearch(name: String) {
+        val origen = _origenLocation.value
+        val destino = _destinoLocation.value
+        val city = _currentCity.value
+        
+        if (origen == null || destino == null || city == null) {
+            _errorMessage.value = "Faltan datos para guardar favorito"
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                val favorite = FavoriteSearch.create(
+                    name = name,
+                    cityId = city.id,
+                    cityName = city.name,
+                    origin = origen,
+                    destination = destino,
+                    originRadius = _originRadius.value,
+                    destinationRadius = _destinationRadius.value
+                )
+                
+                favoriteSearchDao.insertFavorite(favorite)
+                _isFavorite.value = true
+                
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al guardar favorito: ${e.message}"
+            }
+        }
+    }
+    
+    /**
+     * Carga una búsqueda favorita
+     */
+    fun loadFavoriteSearch(favorite: FavoriteSearch) {
+        viewModelScope.launch {
+            try {
+                // Cargar ciudad si es diferente
+                if (_currentCity.value?.id != favorite.cityId) {
+                    val city = _cities.value.find { it.id == favorite.cityId }
+                    if (city != null) {
+                        selectCity(city)
+                    }
+                }
+                
+                // Cargar ubicaciones
+                setOrigen(favorite.toOriginLocation())
+                setDestino(favorite.toDestinationLocation())
+                
+                // Cargar radios
+                updateSearchRadii(favorite.originRadius, favorite.destinationRadius)
+                
+                // Incrementar contador de uso
+                favoriteSearchDao.incrementUseCount(favorite.id, java.util.Date())
+                
+                _isFavorite.value = true
+                
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al cargar favorito: ${e.message}"
+            }
+        }
+    }
+    
+    /**
+     * Elimina una búsqueda favorita
+     */
+    fun deleteFavoriteSearch(favorite: FavoriteSearch) {
+        viewModelScope.launch {
+            try {
+                favoriteSearchDao.deleteFavorite(favorite)
+                _isFavorite.value = false
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al eliminar favorito: ${e.message}"
+            }
+        }
+    }
+    
+    // ========== SEARCH RADII ==========
+    
+    // Radios de búsqueda
+    private val _originRadius = MutableStateFlow(200.0)
+    val originRadius: StateFlow<Double> = _originRadius.asStateFlow()
+    
+    private val _destinationRadius = MutableStateFlow(200.0)
+    val destinationRadius: StateFlow<Double> = _destinationRadius.asStateFlow()
+    
+    /**
+     * Actualiza los radios de búsqueda
+     */
+    fun updateSearchRadii(originRadius: Double, destinationRadius: Double) {
+        _originRadius.value = originRadius
+        _destinationRadius.value = destinationRadius
+        
+        // Guardar en preferencias
+        viewModelScope.launch {
+            preferencesManager.saveSearchRadii(originRadius, destinationRadius)
+        }
+    }
+    
+    /**
+     * Carga los radios de búsqueda desde preferencias
+     */
+    private fun loadSearchRadii() {
+        viewModelScope.launch {
+            preferencesManager.searchRadii.collect { (origin, destination) ->
+                _originRadius.value = origin
+                _destinationRadius.value = destination
+            }
+        }
+    }
+    
+    // ========== PROXIMITY CONFIG ==========
+    
+    // Configuración de proximidad
+    private val _proximityConfig = MutableStateFlow(
+        com.azyroapp.rutasmex.data.preferences.ProximityConfig()
+    )
+    val proximityConfig: StateFlow<com.azyroapp.rutasmex.data.preferences.ProximityConfig> = 
+        _proximityConfig.asStateFlow()
+    
+    /**
+     * Actualiza la configuración de proximidad
+     */
+    fun updateProximityConfig(
+        distance: Double,
+        notificationsEnabled: Boolean,
+        soundEnabled: Boolean,
+        vibrationEnabled: Boolean
+    ) {
+        val config = com.azyroapp.rutasmex.data.preferences.ProximityConfig(
+            distance = distance,
+            notificationsEnabled = notificationsEnabled,
+            soundEnabled = soundEnabled,
+            vibrationEnabled = vibrationEnabled
+        )
+        _proximityConfig.value = config
+        
+        // Guardar en preferencias
+        viewModelScope.launch {
+            preferencesManager.saveProximityConfig(
+                distance,
+                notificationsEnabled,
+                soundEnabled,
+                vibrationEnabled
+            )
+        }
+    }
+    
+    /**
+     * Carga la configuración de proximidad desde preferencias
+     */
+    private fun loadProximityConfig() {
+        viewModelScope.launch {
+            preferencesManager.proximityConfig.collect { config ->
+                _proximityConfig.value = config
+            }
+        }
+    }
+    
+    // ========== ARRIVAL HANDLING ==========
+    
+    /**
+     * Maneja la llegada al destino
+     */
+    fun handleArrival() {
+        // Marcar que se debe mostrar el modal de llegada
+        // El modal se mostrará desde HomeScreen
+    }
+    
+    /**
+     * Comparte el viaje actual
+     */
+    fun shareTrip(trip: com.azyroapp.rutasmex.data.model.Trip) {
+        // TODO: Implementar compartir viaje
+        // Por ahora solo un placeholder
+        viewModelScope.launch {
+            // Crear texto para compartir
+            val shareText = """
+                🚌 Viaje en RutasMEX
+                
+                Ruta: ${trip.routeName}
+                Distancia: ${String.format("%.2f", trip.totalDistance)} km
+                Duración: ${formatDuration(trip.duration ?: 0L)}
+                
+                Origen: ${trip.originName}
+                Destino: ${trip.destinationName}
+            """.trimIndent()
+            
+            // El intent de compartir se manejará desde la UI
+            _errorMessage.value = "Función de compartir próximamente disponible"
+        }
+    }
+    
+    /**
+     * Formatea la duración en texto legible
+     */
+    private fun formatDuration(durationSeconds: Long): String {
+        val hours = durationSeconds / 3600
+        val minutes = (durationSeconds % 3600) / 60
+        return when {
+            hours > 0 -> "${hours}h ${minutes}min"
+            else -> "${minutes}min"
         }
     }
 }

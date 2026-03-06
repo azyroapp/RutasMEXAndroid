@@ -33,6 +33,14 @@ class PreferencesManager(private val context: Context) {
         private val ORIGIN_RADIUS = doublePreferencesKey("origin_radius")
         private val DESTINATION_RADIUS = doublePreferencesKey("destination_radius")
         private val LAST_ACTIVE_ROUTE_ID = stringPreferencesKey("last_active_route_id")
+        private val LAST_FAVORITE_ORIGIN = stringPreferencesKey("last_favorite_origin")
+        private val LAST_FAVORITE_DESTINATION = stringPreferencesKey("last_favorite_destination")
+        
+        // Preferencias de proximidad
+        private val PROXIMITY_DISTANCE = doublePreferencesKey("proximity_distance")
+        private val PROXIMITY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("proximity_notifications_enabled")
+        private val PROXIMITY_SOUND_ENABLED = booleanPreferencesKey("proximity_sound_enabled")
+        private val PROXIMITY_VIBRATION_ENABLED = booleanPreferencesKey("proximity_vibration_enabled")
     }
     
     // ========== CIUDAD ==========
@@ -270,6 +278,90 @@ class PreferencesManager(private val context: Context) {
             preferences[LAST_ACTIVE_ROUTE_ID]
         }
     
+    // ========== FAVORITOS ==========
+    
+    /**
+     * Guarda el último favorito
+     */
+    suspend fun saveLastFavorite(originName: String, destinationName: String) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_FAVORITE_ORIGIN] = originName
+            preferences[LAST_FAVORITE_DESTINATION] = destinationName
+        }
+    }
+    
+    /**
+     * Obtiene el último favorito
+     */
+    val lastFavorite: Flow<Pair<String?, String?>> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            Pair(
+                preferences[LAST_FAVORITE_ORIGIN],
+                preferences[LAST_FAVORITE_DESTINATION]
+            )
+        }
+    
+    // ========== PROXIMIDAD ==========
+    
+    /**
+     * Guarda la configuración de proximidad
+     */
+    suspend fun saveProximityConfig(
+        distance: Double,
+        notificationsEnabled: Boolean,
+        soundEnabled: Boolean,
+        vibrationEnabled: Boolean
+    ) {
+        context.dataStore.edit { preferences ->
+            preferences[PROXIMITY_DISTANCE] = distance
+            preferences[PROXIMITY_NOTIFICATIONS_ENABLED] = notificationsEnabled
+            preferences[PROXIMITY_SOUND_ENABLED] = soundEnabled
+            preferences[PROXIMITY_VIBRATION_ENABLED] = vibrationEnabled
+        }
+    }
+    
+    /**
+     * Obtiene la distancia de proximidad
+     */
+    val proximityDistance: Flow<Double> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[PROXIMITY_DISTANCE] ?: 200.0
+        }
+    
+    /**
+     * Obtiene la configuración completa de proximidad
+     */
+    val proximityConfig: Flow<ProximityConfig> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            ProximityConfig(
+                distance = preferences[PROXIMITY_DISTANCE] ?: 200.0,
+                notificationsEnabled = preferences[PROXIMITY_NOTIFICATIONS_ENABLED] ?: true,
+                soundEnabled = preferences[PROXIMITY_SOUND_ENABLED] ?: true,
+                vibrationEnabled = preferences[PROXIMITY_VIBRATION_ENABLED] ?: true
+            )
+        }
+    
     /**
      * Limpia todas las preferencias
      */
@@ -279,3 +371,13 @@ class PreferencesManager(private val context: Context) {
         }
     }
 }
+
+/**
+ * Data class para configuración de proximidad
+ */
+data class ProximityConfig(
+    val distance: Double = 200.0,
+    val notificationsEnabled: Boolean = true,
+    val soundEnabled: Boolean = true,
+    val vibrationEnabled: Boolean = true
+)
