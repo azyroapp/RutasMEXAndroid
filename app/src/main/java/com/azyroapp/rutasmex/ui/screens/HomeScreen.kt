@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
@@ -27,7 +28,8 @@ import com.google.android.gms.maps.model.LatLng
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    onNavigateToHistory: () -> Unit = {}
 ) {
     val context = LocalContext.current
     
@@ -43,6 +45,9 @@ fun HomeScreen(
     val mapType by viewModel.mapType.collectAsState()
     val selectionMode by viewModel.selectionMode.collectAsState()
     val foundRoutes by viewModel.foundRoutes.collectAsState()
+    val isTripActive by viewModel.isTripActive.collectAsState()
+    val currentTrip by viewModel.currentTrip.collectAsState()
+    val distanceResult by viewModel.distanceResult.collectAsState()
     
     // Estados locales para bottom sheets
     var showCitySelector by remember { mutableStateOf(false) }
@@ -91,6 +96,19 @@ fun HomeScreen(
     }
     
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("RutasMEX") },
+                actions = {
+                    IconButton(onClick = onNavigateToHistory) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = "Historial de viajes"
+                        )
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = {
@@ -150,6 +168,22 @@ fun HomeScreen(
                     viewModel.handleMapTap(latLng, "Ubicación seleccionada")
                 }
             )
+            
+            // Control de viaje activo
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            ) {
+                ActiveTripControl(
+                    isTripActive = isTripActive,
+                    currentTrip = currentTrip,
+                    distanceResult = distanceResult,
+                    onStartTrip = { viewModel.startTrip() },
+                    onStopTrip = { viewModel.stopTrip() },
+                    onCancelTrip = { viewModel.cancelTrip() }
+                )
+            }
             
             // Chip para cambiar tipo de mapa
             FilterChip(

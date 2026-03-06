@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.azyroapp.rutasmex.ui.navigation.AppNavigation
 import com.azyroapp.rutasmex.ui.screens.HomeScreen
 import com.azyroapp.rutasmex.ui.theme.RutasMEXTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -27,7 +28,7 @@ class MainActivityCompose : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    HomeScreen()
+                    AppNavigation()
                 }
             }
         }

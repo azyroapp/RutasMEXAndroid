@@ -1,8 +1,12 @@
 # 🚀 Migración a Jetpack Compose - RutasMEX
 
-## ✅ Estado de la Migración
+## ⚠️ Estado de la Migración
 
 La migración a Jetpack Compose está **COMPLETA** ✨
+
+**PERO:** Faltan funcionalidades CORE de cálculo de rutas.
+
+📊 **Ver análisis completo:** `.kiro/ANALISIS_COMPARATIVO_IOS_ANDROID.md`
 
 ## 📦 Cambios Realizados
 

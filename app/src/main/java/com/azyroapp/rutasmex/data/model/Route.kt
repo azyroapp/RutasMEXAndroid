@@ -1,11 +1,14 @@
 package com.azyroapp.rutasmex.data.model
 
+import android.os.Parcelable
 import com.google.android.gms.maps.model.LatLng
 import com.google.gson.annotations.SerializedName
+import kotlinx.parcelize.Parcelize
 
 /**
  * Segmento de ruta (IDA/REGRESO)
  */
+@Parcelize
 data class RouteSegment(
     @SerializedName("name")
     val name: String,
@@ -15,7 +18,7 @@ data class RouteSegment(
     
     @SerializedName("coordinates")
     val coordinates: List<List<Double>> // [longitude, latitude]
-) {
+) : Parcelable {
     /**
      * Convierte las coordenadas a LatLng de Google Maps
      * IMPORTANTE: Las coordenadas vienen como [lon, lat], pero LatLng usa (lat, lon)
@@ -41,6 +44,7 @@ enum class RouteType {
 /**
  * Modelo de datos para una ruta de transporte
  */
+@Parcelize
 data class Route(
     @SerializedName("id")
     val id: String,
@@ -68,7 +72,7 @@ data class Route(
     
     @SerializedName("itinerary")
     val itinerary: String
-) {
+) : Parcelable {
     /**
      * Obtiene todas las coordenadas de todos los segmentos combinadas
      */

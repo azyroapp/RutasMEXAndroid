@@ -1,13 +1,19 @@
 package com.azyroapp.rutasmex.ui.viewmodel
 
+import android.location.Location
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.azyroapp.rutasmex.core.services.RouteDistanceCalculationService
+import com.azyroapp.rutasmex.core.services.TripTrackingHelper
 import com.azyroapp.rutasmex.data.model.City
+import com.azyroapp.rutasmex.data.model.DistanceCalculationMode
 import com.azyroapp.rutasmex.data.model.LocationPoint
 import com.azyroapp.rutasmex.data.model.Route
+import com.azyroapp.rutasmex.data.model.RouteDistanceResult
 import com.azyroapp.rutasmex.data.repository.RouteRepository
 import com.google.android.gms.maps.model.LatLng
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +26,10 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val repository: RouteRepository
+    private val repository: RouteRepository,
+    private val tripDao: com.azyroapp.rutasmex.data.local.TripDao,
+    private val preferencesManager: com.azyroapp.rutasmex.data.preferences.PreferencesManager,
+    @ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
     
     // Estado de ciudades
@@ -63,8 +72,87 @@ class HomeViewModel @Inject constructor(
     private val _foundRoutes = MutableStateFlow<List<Route>>(emptyList())
     val foundRoutes: StateFlow<List<Route>> = _foundRoutes.asStateFlow()
     
+    // Modo de cálculo de distancia
+    private val _calculationMode = MutableStateFlow(DistanceCalculationMode.IDA)
+    val calculationMode: StateFlow<DistanceCalculationMode> = _calculationMode.asStateFlow()
+    
+    // Resultado del cálculo de distancia
+    private val _distanceResult = MutableStateFlow<RouteDistanceResult?>(null)
+    val distanceResult: StateFlow<RouteDistanceResult?> = _distanceResult.asStateFlow()
+    
+    // Ubicación actual del usuario
+    private val _userLocation = MutableStateFlow<Location?>(null)
+    val userLocation: StateFlow<Location?> = _userLocation.asStateFlow()
+    
+    // Ruta activa (para cálculos)
+    private val _activeRoute = MutableStateFlow<Route?>(null)
+    val activeRoute: StateFlow<Route?> = _activeRoute.asStateFlow()
+    
     init {
         loadCities()
+        loadPreferences()
+    }
+    
+    /**
+     * Carga las preferencias guardadas
+     */
+    private fun loadPreferences() {
+        viewModelScope.launch {
+            // Cargar ciudad seleccionada
+            preferencesManager.selectedCity.collect { (cityId, cityName) ->
+                if (cityId != null && cityName != null) {
+                    val city = _cities.value.find { it.id == cityId }
+                    if (city != null) {
+                        selectCity(city)
+                    }
+                }
+            }
+        }
+        
+        viewModelScope.launch {
+            // Cargar modo de cálculo
+            preferencesManager.calculationMode.collect { mode ->
+                _calculationMode.value = mode
+            }
+        }
+        
+        viewModelScope.launch {
+            // Cargar tipo de mapa
+            preferencesManager.mapType.collect { type ->
+                _mapType.value = when (type) {
+                    "SATELLITE" -> MapType.SATELLITE
+                    else -> MapType.NORMAL
+                }
+            }
+        }
+        
+        viewModelScope.launch {
+            // Cargar origen
+            preferencesManager.origin.collect { (lat, lon, name) ->
+                if (lat != null && lon != null && name != null) {
+                    _origenLocation.value = LocationPoint(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = name,
+                        latitude = lat,
+                        longitude = lon
+                    )
+                }
+            }
+        }
+        
+        viewModelScope.launch {
+            // Cargar destino
+            preferencesManager.destination.collect { (lat, lon, name) ->
+                if (lat != null && lon != null && name != null) {
+                    _destinoLocation.value = LocationPoint(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = name,
+                        latitude = lat,
+                        longitude = lon
+                    )
+                }
+            }
+        }
     }
     
     /**
@@ -92,6 +180,11 @@ class HomeViewModel @Inject constructor(
     fun selectCity(city: City) {
         _currentCity.value = city
         loadRoutesForCurrentCity()
+        
+        // Guardar en preferencias
+        viewModelScope.launch {
+            preferencesManager.saveSelectedCity(city.id, city.name)
+        }
     }
     
     /**
@@ -140,6 +233,11 @@ class HomeViewModel @Inject constructor(
      */
     fun setOrigen(location: LocationPoint) {
         _origenLocation.value = location
+        
+        // Guardar en preferencias
+        viewModelScope.launch {
+            preferencesManager.saveOrigin(location.latitude, location.longitude, location.name)
+        }
     }
     
     /**
@@ -147,6 +245,11 @@ class HomeViewModel @Inject constructor(
      */
     fun setDestino(location: LocationPoint) {
         _destinoLocation.value = location
+        
+        // Guardar en preferencias
+        viewModelScope.launch {
+            preferencesManager.saveDestination(location.latitude, location.longitude, location.name)
+        }
     }
     
     /**
@@ -164,6 +267,11 @@ class HomeViewModel @Inject constructor(
     fun clearLocations() {
         _origenLocation.value = null
         _destinoLocation.value = null
+        
+        // Limpiar en preferencias
+        viewModelScope.launch {
+            preferencesManager.clearLocations()
+        }
     }
     
     /**
@@ -173,6 +281,11 @@ class HomeViewModel @Inject constructor(
         _mapType.value = when (_mapType.value) {
             MapType.NORMAL -> MapType.SATELLITE
             MapType.SATELLITE -> MapType.NORMAL
+        }
+        
+        // Guardar en preferencias
+        viewModelScope.launch {
+            preferencesManager.saveMapType(_mapType.value.name)
         }
     }
     
@@ -289,6 +402,261 @@ class HomeViewModel @Inject constructor(
         return _origenLocation.value != null && 
                _destinoLocation.value != null && 
                _currentCity.value != null
+    }
+    
+    /**
+     * Actualiza la ubicación del usuario
+     */
+    fun updateUserLocation(location: Location) {
+        _userLocation.value = location
+        
+        // Si hay origen, destino y ruta activa, calcular distancia
+        if (_origenLocation.value != null && 
+            _destinoLocation.value != null && 
+            _activeRoute.value != null) {
+            calculateDistance()
+        }
+    }
+    
+    /**
+     * Establece la ruta activa para cálculos
+     */
+    fun setActiveRoute(route: Route?) {
+        _activeRoute.value = route
+        
+        // Guardar en preferencias
+        if (route != null) {
+            viewModelScope.launch {
+                preferencesManager.saveLastActiveRoute(route.id)
+            }
+        }
+        
+        // Si hay origen, destino y ubicación, calcular distancia
+        if (route != null && 
+            _origenLocation.value != null && 
+            _destinoLocation.value != null && 
+            _userLocation.value != null) {
+            calculateDistance()
+        }
+    }
+    
+    /**
+     * Cambia el modo de cálculo de distancia
+     */
+    fun toggleCalculationMode() {
+        _calculationMode.value = _calculationMode.value.next()
+        
+        // Guardar en preferencias
+        viewModelScope.launch {
+            preferencesManager.saveCalculationMode(_calculationMode.value, isManual = true)
+        }
+        
+        // Recalcular con el nuevo modo
+        if (_origenLocation.value != null && 
+            _destinoLocation.value != null && 
+            _activeRoute.value != null && 
+            _userLocation.value != null) {
+            calculateDistance()
+        }
+    }
+    
+    /**
+     * Calcula la distancia usando el servicio de cálculo de rutas
+     */
+    private fun calculateDistance() {
+        val origen = _origenLocation.value ?: return
+        val destino = _destinoLocation.value ?: return
+        val route = _activeRoute.value ?: return
+        val userLoc = _userLocation.value ?: return
+        
+        viewModelScope.launch {
+            try {
+                // Convertir LocationPoint a Location
+                val originLocation = Location("").apply {
+                    latitude = origen.latitude
+                    longitude = origen.longitude
+                }
+                
+                val destinationLocation = Location("").apply {
+                    latitude = destino.latitude
+                    longitude = destino.longitude
+                }
+                
+                // Calcular distancia
+                val result = RouteDistanceCalculationService.calculateDistanceAlongRoute(
+                    userLocation = userLoc,
+                    origin = originLocation,
+                    destination = destinationLocation,
+                    route = route,
+                    calculationMode = _calculationMode.value
+                )
+                
+                if (result != null) {
+                    _distanceResult.value = result
+                    
+                    // Si el modo fue auto-seleccionado, actualizar el modo actual
+                    if (result.selectedMode != _calculationMode.value) {
+                        _calculationMode.value = result.selectedMode
+                    }
+                } else {
+                    _errorMessage.value = "No se pudo calcular la distancia"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al calcular distancia: ${e.message}"
+            }
+        }
+    }
+    
+    // ========== TRIP TRACKING ==========
+    
+    // Estado del viaje activo
+    private val _isTripActive = MutableStateFlow(false)
+    val isTripActive: StateFlow<Boolean> = _isTripActive.asStateFlow()
+    
+    private val _currentTrip = MutableStateFlow<com.azyroapp.rutasmex.data.model.Trip?>(null)
+    val currentTrip: StateFlow<com.azyroapp.rutasmex.data.model.Trip?> = _currentTrip.asStateFlow()
+    
+    // Historial de viajes
+    val tripHistory = tripDao.getRecentTrips(20)
+    
+    /**
+     * Inicia un viaje
+     */
+    fun startTrip() {
+        val origen = _origenLocation.value
+        val destino = _destinoLocation.value
+        val route = _activeRoute.value
+        val city = _currentCity.value
+        val result = _distanceResult.value
+        
+        if (origen == null || destino == null || route == null || city == null || result == null) {
+            _errorMessage.value = "Faltan datos para iniciar el viaje"
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                val trip = com.azyroapp.rutasmex.data.model.Trip(
+                    cityId = city.id,
+                    cityName = city.name,
+                    routeId = route.id,
+                    routeName = route.name,
+                    originLatitude = origen.latitude,
+                    originLongitude = origen.longitude,
+                    originName = origen.name,
+                    destinationLatitude = destino.latitude,
+                    destinationLongitude = destino.longitude,
+                    destinationName = destino.name,
+                    startTime = java.util.Date(),
+                    totalDistance = result.totalDistance,
+                    calculationMode = _calculationMode.value.name
+                )
+                
+                // Guardar en base de datos
+                tripDao.insertTrip(trip)
+                
+                // Actualizar estado
+                _currentTrip.value = trip
+                _isTripActive.value = true
+                
+                // Iniciar TripTrackingService
+                TripTrackingHelper.startTripTracking(
+                    context = context,
+                    trip = trip,
+                    route = route,
+                    calculationMode = _calculationMode.value
+                )
+                
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al iniciar viaje: ${e.message}"
+            }
+        }
+    }
+    
+    /**
+     * Detiene el viaje actual
+     */
+    fun stopTrip() {
+        val trip = _currentTrip.value ?: return
+        
+        viewModelScope.launch {
+            try {
+                val endTime = java.util.Date()
+                val duration = (endTime.time - trip.startTime.time) / 1000 // segundos
+                
+                val updatedTrip = trip.copy(
+                    endTime = endTime,
+                    isCompleted = true,
+                    duration = duration
+                )
+                
+                tripDao.updateTrip(updatedTrip)
+                
+                // Limpiar estado
+                _currentTrip.value = null
+                _isTripActive.value = false
+                
+                // Detener TripTrackingService
+                TripTrackingHelper.stopTripTracking(context)
+                
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al detener viaje: ${e.message}"
+            }
+        }
+    }
+    
+    /**
+     * Cancela el viaje actual
+     */
+    fun cancelTrip() {
+        val trip = _currentTrip.value ?: return
+        
+        viewModelScope.launch {
+            try {
+                val updatedTrip = trip.copy(
+                    endTime = java.util.Date(),
+                    isCancelled = true
+                )
+                
+                tripDao.updateTrip(updatedTrip)
+                
+                // Limpiar estado
+                _currentTrip.value = null
+                _isTripActive.value = false
+                
+                // Cancelar TripTrackingService
+                TripTrackingHelper.cancelTripTracking(context)
+                
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al cancelar viaje: ${e.message}"
+            }
+        }
+    }
+    
+    /**
+     * Elimina un viaje del historial
+     */
+    fun deleteTrip(trip: com.azyroapp.rutasmex.data.model.Trip) {
+        viewModelScope.launch {
+            try {
+                tripDao.deleteTrip(trip)
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al eliminar viaje: ${e.message}"
+            }
+        }
+    }
+    
+    /**
+     * Limpia todo el historial de viajes
+     */
+    fun clearTripHistory() {
+        viewModelScope.launch {
+            try {
+                tripDao.deleteAllTrips()
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al limpiar historial: ${e.message}"
+            }
+        }
     }
 }
 
