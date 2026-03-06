@@ -1,10 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Material 3 Colors -->
+    <color name="primary">#1976D2</color>
+    <color name="primary_dark">#0D47A1</color>
+    <color name="primary_light">#BBDEFB</color>
+    <color name="accent">#FF6B00</color>
+    <color name="accent_light">#FFB74D</color>
+    
+    <!-- Legacy colors for compatibility -->
+    <color name="purple_200">#BBDEFB</color>
+    <color name="purple_500">#1976D2</color>
+    <color name="purple_700">#0D47A1</color>
+    <color name="teal_200">#80CBC4</color>
+    <color name="teal_700">#00796B</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+    
+    <!-- Background -->
+    <color name="background">#FFFFFF</color>
+    <color name="surface">#F5F5F5</color>
+    
+    <!-- Text -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    
+    <!-- Route Colors -->
+    <color name="route_ida">#00C3FF</color>
+    <color name="route_regreso">#FF6B00</color>
+    <color name="route_completo">#9C27B0</color>
+    
+    <!-- Marker Colors -->
+    <color name="marker_origen">#4CAF50</color>
+    <color name="marker_destino">#F44336</color>
+    
+    <!-- Status -->
+    <color name="success">#4CAF50</color>
+    <color name="error">#F44336</color>
+    <color name="warning">#FF9800</color>
+    
+    <!-- Overlay -->
+    <color name="overlay_dark">#80000000</color>
+    <color name="overlay_light">#40000000</color>
 </resources>

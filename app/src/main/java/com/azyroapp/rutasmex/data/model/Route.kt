@@ -129,4 +129,41 @@ data class Route(
     fun isForaneaRoute(): Boolean {
         return routeType.contains("foranea", ignoreCase = true)
     }
+    
+    /**
+     * Verifica si la ruta pasa cerca de un punto dado
+     * @param latitude Latitud del punto
+     * @param longitude Longitud del punto
+     * @param radiusMeters Radio de búsqueda en metros (por defecto 500m)
+     * @return true si algún punto de la ruta está dentro del radio
+     */
+    fun passesNearPoint(latitude: Double, longitude: Double, radiusMeters: Double = 500.0): Boolean {
+        val allCoords = getAllCoordinates()
+        
+        return allCoords.any { coord ->
+            val distance = calculateDistance(
+                latitude, longitude,
+                coord.latitude, coord.longitude
+            )
+            distance <= radiusMeters
+        }
+    }
+    
+    /**
+     * Calcula la distancia en metros entre dos puntos usando la fórmula de Haversine
+     */
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val earthRadius = 6371000.0 // Radio de la Tierra en metros
+        
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        
+        return earthRadius * c
+    }
 }

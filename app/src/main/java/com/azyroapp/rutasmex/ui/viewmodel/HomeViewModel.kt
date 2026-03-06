@@ -1,64 +1,67 @@
-package com.azyroapp.rutasmex.ui.home
+package com.azyroapp.rutasmex.ui.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.azyroapp.rutasmex.data.model.City
 import com.azyroapp.rutasmex.data.model.LocationPoint
 import com.azyroapp.rutasmex.data.model.Route
 import com.azyroapp.rutasmex.data.repository.RouteRepository
 import com.google.android.gms.maps.model.LatLng
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
- * ViewModel principal para la pantalla Home
- * Gestiona el estado de la aplicación: ciudades, rutas, ubicaciones, etc.
+ * ViewModel principal para la pantalla Home con Compose
+ * Usa StateFlow en lugar de LiveData para mejor integración con Compose
  */
-class HomeViewModel(application: Application) : AndroidViewModel(application) {
-    
-    private val repository = RouteRepository(application)
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val repository: RouteRepository
+) : ViewModel() {
     
     // Estado de ciudades
-    private val _cities = MutableLiveData<List<City>>()
-    val cities: LiveData<List<City>> = _cities
+    private val _cities = MutableStateFlow<List<City>>(emptyList())
+    val cities: StateFlow<List<City>> = _cities.asStateFlow()
     
-    private val _currentCity = MutableLiveData<City?>()
-    val currentCity: LiveData<City?> = _currentCity
+    private val _currentCity = MutableStateFlow<City?>(null)
+    val currentCity: StateFlow<City?> = _currentCity.asStateFlow()
     
     // Estado de rutas
-    private val _availableRoutes = MutableLiveData<List<Route>>()
-    val availableRoutes: LiveData<List<Route>> = _availableRoutes
+    private val _availableRoutes = MutableStateFlow<List<Route>>(emptyList())
+    val availableRoutes: StateFlow<List<Route>> = _availableRoutes.asStateFlow()
     
-    private val _selectedRoutes = MutableLiveData<List<Route>>(emptyList())
-    val selectedRoutes: LiveData<List<Route>> = _selectedRoutes
+    private val _selectedRoutes = MutableStateFlow<List<Route>>(emptyList())
+    val selectedRoutes: StateFlow<List<Route>> = _selectedRoutes.asStateFlow()
     
     // Estado de ubicaciones
-    private val _origenLocation = MutableLiveData<LocationPoint?>()
-    val origenLocation: LiveData<LocationPoint?> = _origenLocation
+    private val _origenLocation = MutableStateFlow<LocationPoint?>(null)
+    val origenLocation: StateFlow<LocationPoint?> = _origenLocation.asStateFlow()
     
-    private val _destinoLocation = MutableLiveData<LocationPoint?>()
-    val destinoLocation: LiveData<LocationPoint?> = _destinoLocation
+    private val _destinoLocation = MutableStateFlow<LocationPoint?>(null)
+    val destinoLocation: StateFlow<LocationPoint?> = _destinoLocation.asStateFlow()
     
     // Estado de carga
-    private val _isLoading = MutableLiveData<Boolean>(false)
-    val isLoading: LiveData<Boolean> = _isLoading
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     
-    private val _errorMessage = MutableLiveData<String?>()
-    val errorMessage: LiveData<String?> = _errorMessage
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
     
     // Estado del mapa
-    private val _mapType = MutableLiveData<MapType>(MapType.NORMAL)
-    val mapType: LiveData<MapType> = _mapType
-    
-    // Estado del viaje
-    private val _isTripActive = MutableLiveData<Boolean>(false)
-    val isTripActive: LiveData<Boolean> = _isTripActive
+    private val _mapType = MutableStateFlow(MapType.NORMAL)
+    val mapType: StateFlow<MapType> = _mapType.asStateFlow()
     
     // Modo de selección en el mapa
-    private val _selectionMode = MutableLiveData<SelectionMode>(SelectionMode.NONE)
-    val selectionMode: LiveData<SelectionMode> = _selectionMode
+    private val _selectionMode = MutableStateFlow(SelectionMode.NONE)
+    val selectionMode: StateFlow<SelectionMode> = _selectionMode.asStateFlow()
+    
+    // Rutas encontradas que pasan por origen y destino
+    private val _foundRoutes = MutableStateFlow<List<Route>>(emptyList())
+    val foundRoutes: StateFlow<List<Route>> = _foundRoutes.asStateFlow()
     
     init {
         loadCities()
@@ -116,7 +119,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
      * Selecciona/deselecciona una ruta
      */
     fun toggleRouteSelection(route: Route) {
-        val currentSelected = _selectedRoutes.value ?: emptyList()
+        val currentSelected = _selectedRoutes.value
         
         _selectedRoutes.value = if (currentSelected.contains(route)) {
             currentSelected - route
@@ -170,28 +173,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         _mapType.value = when (_mapType.value) {
             MapType.NORMAL -> MapType.SATELLITE
             MapType.SATELLITE -> MapType.NORMAL
-            else -> MapType.NORMAL
         }
-    }
-    
-    /**
-     * Inicia un viaje
-     */
-    fun startTrip() {
-        if (_origenLocation.value != null && 
-            _destinoLocation.value != null && 
-            !_selectedRoutes.value.isNullOrEmpty()) {
-            _isTripActive.value = true
-        }
-    }
-    
-    /**
-     * Detiene el viaje
-     */
-    fun stopTrip() {
-        _isTripActive.value = false
-        clearLocations()
-        clearSelectedRoutes()
     }
     
     /**
@@ -225,21 +207,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Maneja el tap en el mapa según el modo de selección
      */
-    fun handleMapTap(latLng: com.google.android.gms.maps.model.LatLng, locationName: String = "Ubicación seleccionada") {
+    fun handleMapTap(latLng: LatLng, locationName: String = "Ubicación seleccionada") {
         when (_selectionMode.value) {
             SelectionMode.SELECTING_ORIGEN -> {
-                val location = com.azyroapp.rutasmex.data.model.LocationPoint.fromLatLng(
-                    latLng, 
-                    locationName
-                )
+                val location = LocationPoint.fromLatLng(latLng, locationName)
                 setOrigen(location)
                 _selectionMode.value = SelectionMode.NONE
             }
             SelectionMode.SELECTING_DESTINO -> {
-                val location = com.azyroapp.rutasmex.data.model.LocationPoint.fromLatLng(
-                    latLng, 
-                    locationName
-                )
+                val location = LocationPoint.fromLatLng(latLng, locationName)
                 setDestino(location)
                 _selectionMode.value = SelectionMode.NONE
             }
@@ -247,6 +223,72 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 // No hacer nada si no está en modo de selección
             }
         }
+    }
+    
+    /**
+     * Busca rutas que pasan cerca del origen y destino
+     */
+    fun searchRoutes(searchRadiusMeters: Double = 500.0) {
+        val origen = _origenLocation.value
+        val destino = _destinoLocation.value
+        val routes = _availableRoutes.value
+        
+        if (origen == null || destino == null) {
+            _errorMessage.value = "Debes seleccionar origen y destino"
+            return
+        }
+        
+        if (routes.isEmpty()) {
+            _errorMessage.value = "No hay rutas disponibles. Selecciona una ciudad primero"
+            return
+        }
+        
+        viewModelScope.launch {
+            _isLoading.value = true
+            
+            try {
+                val foundRoutesList = routes.filter { route ->
+                    val passesNearOrigen = route.passesNearPoint(
+                        origen.latitude, 
+                        origen.longitude, 
+                        searchRadiusMeters
+                    )
+                    val passesNearDestino = route.passesNearPoint(
+                        destino.latitude, 
+                        destino.longitude, 
+                        searchRadiusMeters
+                    )
+                    
+                    passesNearOrigen && passesNearDestino
+                }
+                
+                _foundRoutes.value = foundRoutesList
+                _isLoading.value = false
+                
+                if (foundRoutesList.isEmpty()) {
+                    _errorMessage.value = "No se encontraron rutas que pasen por ambos puntos"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al buscar rutas: ${e.message}"
+                _isLoading.value = false
+            }
+        }
+    }
+    
+    /**
+     * Limpia los resultados de búsqueda
+     */
+    fun clearSearchResults() {
+        _foundRoutes.value = emptyList()
+    }
+    
+    /**
+     * Verifica si se puede buscar rutas
+     */
+    fun canSearchRoutes(): Boolean {
+        return _origenLocation.value != null && 
+               _destinoLocation.value != null && 
+               _currentCity.value != null
     }
 }
 
