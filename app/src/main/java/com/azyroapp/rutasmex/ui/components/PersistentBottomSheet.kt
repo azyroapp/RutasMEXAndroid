@@ -1,5 +1,6 @@
 package com.azyroapp.rutasmex.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,7 +17,6 @@ import com.azyroapp.rutasmex.data.model.Route
  * Siempre visible en la parte inferior de la pantalla
  * Replica el comportamiento de iOS PersistentBottomModal
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersistentBottomSheet(
     routes: List<Route>,
@@ -33,27 +33,41 @@ fun PersistentBottomSheet(
     onFavoriteTap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = false
-    )
-    
     // Filtrar rutas según origen/destino
     val filteredRoutes = remember(routes, origenLocation, destinoLocation) {
         filterRoutes(routes, origenLocation, destinoLocation)
     }
 
-    ModalBottomSheet(
-        onDismissRequest = { /* No se puede cerrar */ },
-        sheetState = sheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        modifier = modifier
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large.copy(
+            bottomStart = androidx.compose.foundation.shape.CornerSize(0.dp),
+            bottomEnd = androidx.compose.foundation.shape.CornerSize(0.dp)
+        ),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+        tonalElevation = 8.dp,
+        shadowElevation = 8.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp)
+                .padding(top = 12.dp, bottom = 16.dp)
         ) {
+            // Drag handle visual
+            Box(
+                modifier = Modifier
+                    .width(32.dp)
+                    .height(4.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        shape = MaterialTheme.shapes.extraLarge
+                    )
+                    .align(Alignment.CenterHorizontally)
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
             // Barra de control (LocationInputRow)
             LocationInputRow(
                 origenLocation = origenLocation,

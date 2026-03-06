@@ -985,6 +985,18 @@ class HomeViewModel @Inject constructor(
     }
     
     /**
+     * Resetea todos los datos (origen, destino, rutas seleccionadas)
+     */
+    fun resetAllData() {
+        clearLocations()
+        clearSelectedRoutes()
+        clearSearchResults()
+        _distanceResult.value = null
+        _activeRoute.value = null
+        _isFavorite.value = false
+    }
+    
+    /**
      * Comparte el viaje actual
      */
     fun shareTrip(trip: com.azyroapp.rutasmex.data.model.Trip) {

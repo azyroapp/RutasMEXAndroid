@@ -128,107 +128,17 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Botón de configuración de proximidad
-                if (isTripActive) {
-                    SmallFloatingActionButton(
-                        onClick = { showProximityConfig = true }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Configurar proximidad"
-                        )
-                    }
+            // Botón de configuración de proximidad (solo durante viaje activo)
+            if (isTripActive) {
+                SmallFloatingActionButton(
+                    onClick = { showProximityConfig = true }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Configurar proximidad"
+                    )
                 }
-                
-                // Botón de configuración de radios
-                if (currentCity != null && !isTripActive) {
-                    SmallFloatingActionButton(
-                        onClick = { showRadiusConfig = true }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Configurar radios"
-                        )
-                    }
-                }
-                
-                // Botón principal
-                ExtendedFloatingActionButton(
-                    onClick = {
-                        when {
-                            currentCity == null -> showCitySelector = true
-                            isTripActive -> {
-                                // Si hay viaje activo, mostrar modal de llegada
-                                showArrivalModal = true
-                            }
-                            selectedRoutes.isNotEmpty() && origenLocation != null && destinoLocation != null -> {
-                                // Si hay rutas seleccionadas, mostrar modal para iniciar viaje
-                                showRouteSelectionForTrip = true
-                            }
-                            else -> showRouteSearch = true
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = when {
-                                currentCity == null -> Icons.Default.Map
-                                isTripActive -> Icons.Default.CheckCircle
-                                else -> Icons.Default.Search
-                            },
-                            contentDescription = null
-                        )
-                    },
-                    text = {
-                        Text(
-                            text = when {
-                                currentCity == null -> "Seleccionar Ciudad"
-                                isTripActive -> "Finalizar Viaje"
-                                selectedRoutes.isNotEmpty() && origenLocation != null && destinoLocation != null -> "Iniciar Viaje"
-                                else -> "Buscar Rutas"
-                            }
-                        )
-                    }
-                )
             }
-        },
-        bottomBar = {
-            // Modal persistente inferior (siempre visible)
-            PersistentBottomSheet(
-                routes = availableRoutes,
-                selectedRouteIds = selectedRoutes.map { it.id }.toSet(),
-                origenLocation = origenLocation,
-                destinoLocation = destinoLocation,
-                isTripActive = isTripActive,
-                hasCitySelected = currentCity != null,
-                isFavorite = isFavorite,
-                onRouteToggle = { route ->
-                    viewModel.toggleRouteSelection(route)
-                },
-                onOriginTap = {
-                    isSelectingOrigin = true
-                    showLocationSelection = true
-                },
-                onDestinationTap = {
-                    isSelectingOrigin = false
-                    showLocationSelection = true
-                },
-                onSwap = {
-                    viewModel.swapLocations()
-                },
-                onFavoriteTap = {
-                    // Si ya hay origen y destino, mostrar modal para guardar o ver favoritos
-                    if (origenLocation != null && destinoLocation != null) {
-                        if (isFavorite) {
-                            showFavorites = true
-                        } else {
-                            showSaveFavorite = true
-                        }
-                    }
-                }
-            )
         }
     ) { paddingValues ->
         Box(
@@ -236,7 +146,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Mapa
+            // Mapa (fondo)
             MapView(
                 selectedRoutes = selectedRoutes,
                 origenLocation = origenLocation,
@@ -252,23 +162,7 @@ fun HomeScreen(
                 }
             )
             
-            // Control de viaje activo
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-            ) {
-                ActiveTripControl(
-                    isTripActive = isTripActive,
-                    currentTrip = currentTrip,
-                    distanceResult = distanceResult,
-                    onStartTrip = { viewModel.startTrip() },
-                    onStopTrip = { viewModel.stopTrip() },
-                    onCancelTrip = { viewModel.cancelTrip() }
-                )
-            }
-            
-            // Chip para cambiar tipo de mapa
+            // Chip para cambiar tipo de mapa (top-right)
             FilterChip(
                 selected = mapType == com.azyroapp.rutasmex.ui.viewmodel.MapType.SATELLITE,
                 onClick = { viewModel.toggleMapType() },
@@ -286,10 +180,85 @@ fun HomeScreen(
                     .padding(16.dp)
             )
             
-            // Loading indicator
+            // Loading indicator (center)
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center)
+                )
+            }
+            
+            // Layout inferior: MapControlsBar + PersistentBottomSheet
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            ) {
+                // MapControlsBar (arriba del modal persistente)
+                MapControlsBar(
+                    isTripActive = isTripActive,
+                    hasCity = currentCity != null,
+                    hasOrigin = origenLocation != null,
+                    hasDestination = destinoLocation != null,
+                    hasSelectedRoutes = selectedRoutes.isNotEmpty(),
+                    distanceResult = distanceResult,
+                    activeRouteName = currentTrip?.routeName,
+                    onPlayTrip = {
+                        if (selectedRoutes.isNotEmpty() && origenLocation != null && destinoLocation != null) {
+                            showRouteSelectionForTrip = true
+                        }
+                    },
+                    onStopTrip = {
+                        showArrivalModal = true
+                    },
+                    onReset = {
+                        viewModel.resetAllData()
+                    },
+                    onConfigureRadius = {
+                        showRadiusConfig = true
+                    },
+                    onMapSelection = {
+                        // Mostrar modal de selección de ubicación para origen
+                        isSelectingOrigin = true
+                        showLocationSelection = true
+                    },
+                    onSearch = {
+                        showRouteSearch = true
+                    }
+                )
+                
+                // PersistentBottomSheet (siempre visible)
+                PersistentBottomSheet(
+                    routes = availableRoutes,
+                    selectedRouteIds = selectedRoutes.map { it.id }.toSet(),
+                    origenLocation = origenLocation,
+                    destinoLocation = destinoLocation,
+                    isTripActive = isTripActive,
+                    hasCitySelected = currentCity != null,
+                    isFavorite = isFavorite,
+                    onRouteToggle = { route ->
+                        viewModel.toggleRouteSelection(route)
+                    },
+                    onOriginTap = {
+                        isSelectingOrigin = true
+                        showLocationSelection = true
+                    },
+                    onDestinationTap = {
+                        isSelectingOrigin = false
+                        showLocationSelection = true
+                    },
+                    onSwap = {
+                        viewModel.swapLocations()
+                    },
+                    onFavoriteTap = {
+                        // Si ya hay origen y destino, mostrar modal para guardar o ver favoritos
+                        if (origenLocation != null && destinoLocation != null) {
+                            if (isFavorite) {
+                                showFavorites = true
+                            } else {
+                                showSaveFavorite = true
+                            }
+                        }
+                    }
                 )
             }
         }
