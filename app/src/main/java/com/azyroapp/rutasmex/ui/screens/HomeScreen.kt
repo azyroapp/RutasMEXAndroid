@@ -211,7 +211,7 @@ fun HomeScreen(
                 proximityFarRadius = proximityConfig.distance,
                 proximityMediumRadius = proximityConfig.distance * 0.6,
                 proximityNearRadius = proximityConfig.distance * 0.3,
-                showProximityCircles = isTripActive,
+                showProximityCircles = destinoLocation != null, // Mostrar siempre que haya destino
                 isLocationPermissionGranted = isLocationPermissionGranted,
                 onMapClick = { latLng ->
                     viewModel.handleMapTap(latLng)
