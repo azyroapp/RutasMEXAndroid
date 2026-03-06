@@ -14,6 +14,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.azyroapp.rutasmex.MainActivityCompose
 import com.azyroapp.rutasmex.R
+import com.azyroapp.rutasmex.core.config.AppConfiguration
 import com.azyroapp.rutasmex.data.local.AppDatabase
 import com.azyroapp.rutasmex.data.model.ActiveTripState
 import com.azyroapp.rutasmex.data.model.DistanceCalculationMode
@@ -68,9 +69,6 @@ class TripTrackingService : Service() {
         const val EXTRA_TRIP = "extra_trip"
         const val EXTRA_ROUTE = "extra_route"
         const val EXTRA_CALCULATION_MODE = "extra_calculation_mode"
-        
-        // Velocidad promedio de transporte público (km/h)
-        private const val AVERAGE_SPEED_KMH = 25.0
     }
     
     override fun onCreate() {
@@ -264,9 +262,7 @@ class TripTrackingService : Service() {
      * Calcula el tiempo estimado de llegada
      */
     private fun calculateEstimatedTime(distanceMeters: Double): Int {
-        val distanceKm = distanceMeters / 1000.0
-        val hours = distanceKm / AVERAGE_SPEED_KMH
-        return (hours * 60).toInt().coerceAtLeast(1)
+        return AppConfiguration.estimatedTime(distanceMeters).coerceAtLeast(1)
     }
     
     /**

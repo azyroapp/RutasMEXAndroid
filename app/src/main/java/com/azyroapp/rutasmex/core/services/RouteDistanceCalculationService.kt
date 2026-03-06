@@ -2,6 +2,7 @@ package com.azyroapp.rutasmex.core.services
 
 import android.location.Location
 import android.util.Log
+import com.azyroapp.rutasmex.core.config.AppConfiguration
 import com.azyroapp.rutasmex.data.model.DistanceCalculationMode
 import com.azyroapp.rutasmex.data.model.Route
 import com.azyroapp.rutasmex.data.model.RouteDistanceResult
@@ -16,8 +17,6 @@ import com.google.android.gms.maps.model.LatLng
 object RouteDistanceCalculationService {
     
     private const val TAG = "RouteDistanceCalc"
-    private const val PROXIMITY_THRESHOLD = 500.0 // metros
-    private const val DESTINATION_PROXIMITY_THRESHOLD = 300.0 // metros
     
     /**
      * Calcula distancia siguiendo la ruta de combi
@@ -164,7 +163,7 @@ object RouteDistanceCalculationService {
         }
         
         // Validar que el destino esté cerca de la ruta
-        if (distanceDestToRoute > DESTINATION_PROXIMITY_THRESHOLD) {
+        if (distanceDestToRoute > AppConfiguration.DESTINATION_PROXIMITY_THRESHOLD) {
             Log.w(TAG, "Destino muy lejos de la ruta: ${distanceDestToRoute.toInt()}m")
             return null
         }
@@ -309,21 +308,21 @@ object RouteDistanceCalculationService {
         // Filtrar candidatos válidos (origen→proyectado Y destino→proyectado ≤ 500m)
         val candidatos = mutableListOf<Pair<DistanceCalculationMode, Double>>()
         
-        if (distOriginIdaProj <= PROXIMITY_THRESHOLD && distDestIdaProj <= PROXIMITY_THRESHOLD) {
+        if (distOriginIdaProj <= AppConfiguration.PROXIMITY_THRESHOLD && distDestIdaProj <= AppConfiguration.PROXIMITY_THRESHOLD) {
             candidatos.add(Pair(DistanceCalculationMode.IDA, longitudIda))
             Log.i(TAG, "   ✅ IDA es candidato válido")
         } else {
             Log.i(TAG, "   ❌ IDA descartado (muy lejos)")
         }
         
-        if (distOriginRegresoProj <= PROXIMITY_THRESHOLD && distDestRegresoProj <= PROXIMITY_THRESHOLD) {
+        if (distOriginRegresoProj <= AppConfiguration.PROXIMITY_THRESHOLD && distDestRegresoProj <= AppConfiguration.PROXIMITY_THRESHOLD) {
             candidatos.add(Pair(DistanceCalculationMode.REGRESO, longitudRegreso))
             Log.i(TAG, "   ✅ REGRESO es candidato válido")
         } else {
             Log.i(TAG, "   ❌ REGRESO descartado (muy lejos)")
         }
         
-        if (distOriginCompletoProj <= PROXIMITY_THRESHOLD && distDestCompletoProj <= PROXIMITY_THRESHOLD) {
+        if (distOriginCompletoProj <= AppConfiguration.PROXIMITY_THRESHOLD && distDestCompletoProj <= AppConfiguration.PROXIMITY_THRESHOLD) {
             candidatos.add(Pair(DistanceCalculationMode.COMPLETO, longitudCompleto))
             Log.i(TAG, "   ✅ COMPLETO es candidato válido")
         } else {
