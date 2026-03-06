@@ -201,7 +201,6 @@ fun HomeScreen(
                     hasDestination = destinoLocation != null,
                     hasSelectedRoutes = selectedRoutes.isNotEmpty(),
                     distanceResult = distanceResult,
-                    activeRouteName = currentTrip?.routeName,
                     onPlayTrip = {
                         if (selectedRoutes.isNotEmpty() && origenLocation != null && destinoLocation != null) {
                             showRouteSelectionForTrip = true

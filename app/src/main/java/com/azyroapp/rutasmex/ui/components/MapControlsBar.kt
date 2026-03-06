@@ -2,7 +2,6 @@ package com.azyroapp.rutasmex.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -27,7 +26,6 @@ fun MapControlsBar(
     hasDestination: Boolean,
     hasSelectedRoutes: Boolean,
     distanceResult: RouteDistanceResult?,
-    activeRouteName: String?,
     onPlayTrip: () -> Unit,
     onStopTrip: () -> Unit,
     onReset: () -> Unit,
@@ -44,16 +42,19 @@ fun MapControlsBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Trip Banner (si hay viaje activo)
-        if (isTripActive && distanceResult != null && activeRouteName != null) {
-            TripBannerCompact(
-                routeName = activeRouteName,
-                distance = distanceResult.totalDistance,
-                modifier = Modifier.weight(1f)
+        // Trip Banner Circular (si hay viaje activo)
+        if (isTripActive && distanceResult != null) {
+            TripBannerCircular(
+                distance = distanceResult.distanceToDestination,
+                time = (distanceResult.distanceToDestination / 1000 * 3).toInt(), // Estimación: 3 min por km
+                hasData = true,
+                onClick = {
+                    // TODO: Expandir info detallada
+                }
             )
-        } else {
-            Spacer(modifier = Modifier.weight(1f))
         }
+        
+        Spacer(modifier = Modifier.weight(1f))
         
         // Play / Stop
         if (!isTripActive) {
@@ -149,47 +150,6 @@ private fun MapControlButton(
                 contentDescription = null,
                 tint = if (enabled) tint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                 modifier = Modifier.size(24.dp)
-            )
-        }
-    }
-}
-
-/**
- * Banner compacto de información del viaje
- */
-@Composable
-private fun TripBannerCompact(
-    routeName: String,
-    distance: Double,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.height(48.dp),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
-        tonalElevation = 2.dp,
-        shadowElevation = 4.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Nombre de ruta
-            Text(
-                text = routeName,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.weight(1f)
-            )
-            
-            // Distancia
-            Text(
-                text = "${String.format("%.2f", distance)} km",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
             )
         }
     }
