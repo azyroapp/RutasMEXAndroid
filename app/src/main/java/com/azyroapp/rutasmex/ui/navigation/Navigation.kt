@@ -39,10 +39,7 @@ fun AppNavigation(
     ) {
         composable(Screen.Home.route) {
             HomeScreen(
-                viewModel = viewModel,
-                onNavigateToHistory = {
-                    navController.navigate(Screen.TripHistory.route)
-                }
+                viewModel = viewModel
             )
         }
         

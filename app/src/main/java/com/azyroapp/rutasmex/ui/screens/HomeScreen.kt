@@ -31,8 +31,7 @@ import com.google.android.gms.maps.model.LatLng
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = hiltViewModel(),
-    onNavigateToHistory: () -> Unit = {}
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     
@@ -80,6 +79,7 @@ fun HomeScreen(
     var placeToEdit by remember { mutableStateOf<com.azyroapp.rutasmex.data.model.SavedPlace?>(null) }
     var showTripDetail by remember { mutableStateOf(false) }
     var showProximityConfigModal by remember { mutableStateOf(false) }
+    var showTripHistory by remember { mutableStateOf(false) }
     
     // Permisos de ubicación
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -172,7 +172,7 @@ fun HomeScreen(
                             showFavorites = true
                         },
                         onShowHistory = {
-                            onNavigateToHistory()
+                            showTripHistory = true
                         },
                         onShowSettings = {
                             showSettings = true
@@ -563,6 +563,41 @@ fun HomeScreen(
             },
             onDismiss = {
                 showSavedPlacesManager = false
+            }
+        )
+    }
+    
+    // Modal de historial de viajes
+    if (showTripHistory) {
+        val trips by viewModel.tripHistory.collectAsState(initial = emptyList())
+        
+        TripHistoryModal(
+            trips = trips,
+            onTripClick = { trip ->
+                // Mostrar detalle del viaje
+                viewModel.setActiveRoute(
+                    availableRoutes.find { it.id == trip.routeId }
+                )
+                showTripDetail = true
+            },
+            onDeleteTrip = { trip ->
+                viewModel.deleteTrip(trip)
+                Toast.makeText(
+                    context,
+                    "Viaje eliminado",
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            onClearHistory = {
+                viewModel.clearTripHistory()
+                Toast.makeText(
+                    context,
+                    "Historial limpiado",
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            onDismiss = {
+                showTripHistory = false
             }
         )
     }
