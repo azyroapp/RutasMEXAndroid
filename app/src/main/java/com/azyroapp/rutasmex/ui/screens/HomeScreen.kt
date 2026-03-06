@@ -56,6 +56,7 @@ fun HomeScreen(
     val originRadius by viewModel.originRadius.collectAsState()
     val destinationRadius by viewModel.destinationRadius.collectAsState()
     val proximityConfig by viewModel.proximityConfig.collectAsState()
+    val calculationMode by viewModel.calculationMode.collectAsState()
     
     // Estados locales para bottom sheets
     var showCitySelector by remember { mutableStateOf(false) }
@@ -71,6 +72,7 @@ fun HomeScreen(
     var showRouteSelectionForTrip by remember { mutableStateOf(false) }
     var showArrivalModal by remember { mutableStateOf(false) }
     var showProximityConfig by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     
     // Permisos de ubicación
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -117,13 +119,39 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text("RutasMEX") },
+                navigationIcon = {
+                    // Botón de modo de cálculo (IZQUIERDA)
+                    CalculationModeButton(
+                        currentMode = calculationMode,
+                        onToggleMode = {
+                            viewModel.toggleCalculationMode()
+                        },
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                },
                 actions = {
-                    IconButton(onClick = onNavigateToHistory) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = "Historial de viajes"
-                        )
-                    }
+                    // Menú de opciones (DERECHA)
+                    AppOptionsMenu(
+                        mapType = mapType,
+                        onToggleMapType = {
+                            viewModel.toggleMapType()
+                        },
+                        onShowProximityConfig = {
+                            showRadiusConfig = true
+                        },
+                        onShowSavedPlaces = {
+                            showSavedPlacesManager = true
+                        },
+                        onShowFavorites = {
+                            showFavorites = true
+                        },
+                        onShowHistory = {
+                            onNavigateToHistory()
+                        },
+                        onShowSettings = {
+                            showSettings = true
+                        }
+                    )
                 }
             )
         },
@@ -160,24 +188,6 @@ fun HomeScreen(
                     // TODO: Mostrar diálogo de opciones
                     viewModel.handleMapTap(latLng, "Ubicación seleccionada")
                 }
-            )
-            
-            // Chip para cambiar tipo de mapa (top-right)
-            FilterChip(
-                selected = mapType == com.azyroapp.rutasmex.ui.viewmodel.MapType.SATELLITE,
-                onClick = { viewModel.toggleMapType() },
-                label = {
-                    Text(
-                        text = if (mapType == com.azyroapp.rutasmex.ui.viewmodel.MapType.SATELLITE) {
-                            "Normal"
-                        } else {
-                            "Satélite"
-                        }
-                    )
-                },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
             )
             
             // Loading indicator (center)
@@ -579,6 +589,31 @@ fun HomeScreen(
             },
             onDismiss = {
                 showProximityConfig = false
+            }
+        )
+    }
+    
+    // Modal de configuración (Settings)
+    if (showSettings) {
+        AlertDialog(
+            onDismissRequest = { showSettings = false },
+            title = { Text("Configuración") },
+            text = {
+                Column {
+                    Text("Pantalla de configuración próximamente disponible")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Aquí podrás configurar:")
+                    Text("• Preferencias de notificaciones")
+                    Text("• Unidades de medida")
+                    Text("• Idioma")
+                    Text("• Tema de la app")
+                    Text("• Y más...")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSettings = false }) {
+                    Text("Entendido")
+                }
             }
         )
     }
