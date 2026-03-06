@@ -8,7 +8,9 @@
 
 ## 🎯 Resumen
 
-La Fase 6E implementa 3 modales adicionales opcionales que mejoran la experiencia de usuario con funcionalidades avanzadas: permisos elegantes, tienda de ciudades y vista AR conceptual.
+La Fase 6E implementa 2 modales adicionales opcionales que mejoran la experiencia de usuario con funcionalidades avanzadas: permisos elegantes y vista AR conceptual.
+
+**Nota:** CityStoreModal fue eliminado ya que en Android todas las ciudades están disponibles gratuitamente (sin compras in-app).
 
 ---
 
@@ -60,82 +62,7 @@ LocationPermissionModal(
 
 ---
 
-### 2️⃣ CityStoreModal.kt (~280 líneas)
-
-**Función:** Tienda de ciudades para compras in-app
-
-**Características:**
-- ✅ Lista de ciudades disponibles para compra
-- ✅ Modelo de datos CityProduct:
-  - id, name, description
-  - price (String para mostrar)
-  - isPurchased (estado de compra)
-  - isPopular (badge especial)
-- ✅ Card diferenciado para ciudades populares
-- ✅ Estados visuales:
-  - No comprada: Precio + botón "Desbloquear"
-  - Comprada: Badge "Comprada" + ícono check
-- ✅ Botón "Restaurar Compras"
-- ✅ Nota informativa sobre compras
-- ✅ LazyColumn con scroll
-
-**UI Elements:**
-- LazyColumn con lista de ciudades
-- CityProductCard component
-- Surface con elevación diferenciada (popular)
-- Box con ícono (Map o Check)
-- Button de compra con ícono Lock
-- Surface con nota informativa (💡)
-- TextButton para restaurar
-
-**Data Model:**
-```kotlin
-data class CityProduct(
-    val id: String,
-    val name: String,
-    val description: String,
-    val price: String,
-    val isPurchased: Boolean = false,
-    val isPopular: Boolean = false
-)
-```
-
-**Callbacks:**
-```kotlin
-onPurchaseCity: (CityProduct) -> Unit
-onRestorePurchases: () -> Unit
-onDismiss: () -> Unit
-```
-
-**Ejemplo de uso:**
-```kotlin
-val cities = listOf(
-    CityProduct(
-        id = "guadalajara",
-        name = "Guadalajara",
-        description = "200+ rutas de transporte público",
-        price = "$49 MXN",
-        isPopular = true
-    ),
-    CityProduct(
-        id = "monterrey",
-        name = "Monterrey",
-        description = "150+ rutas disponibles",
-        price = "$49 MXN"
-    )
-)
-
-CityStoreModal(
-    availableCities = cities,
-    onPurchaseCity = { city -> /* Iniciar compra */ },
-    onRestorePurchases = { /* Restaurar */ },
-    onDismiss = { /* Cerrar */ }
-)
-```
-
----
-
-### 3️⃣ ARViewModal.kt (~350 líneas)
+### 2️⃣ ARViewModal.kt (~350 líneas)
 
 **Función:** Vista de Realidad Aumentada (conceptual/simulada)
 
@@ -196,12 +123,14 @@ Esta es una implementación conceptual sin ARCore real. Para implementación com
 
 ## 📊 Métricas
 
-**Archivos creados:** 3
+**Archivos creados:** 2
 - LocationPermissionModal.kt (~220 líneas)
-- CityStoreModal.kt (~280 líneas)
 - ARViewModal.kt (~350 líneas)
 
-**Total líneas agregadas:** ~850 líneas
+**Archivos eliminados:** 1
+- CityStoreModal.kt (no necesario - ciudades gratuitas en Android)
+
+**Total líneas agregadas:** ~570 líneas
 
 **Warnings:** 1 (kapt options, no crítico)
 
@@ -218,12 +147,6 @@ Esta es una implementación conceptual sin ARCore real. Para implementación com
 - RoundedCornerShape(16dp) para surfaces
 - SecondaryContainer para nota de privacidad
 - Colores semánticos (primary, onSurfaceVariant)
-
-**CityStoreModal:**
-- Elevación diferenciada (2dp normal, 4dp popular)
-- PrimaryContainer para ciudades populares
-- CircleShape para íconos de estado
-- Badge "⭐ Popular" para destacar
 
 **ARViewModal:**
 - Fondo negro con alpha 0.9f
@@ -265,17 +188,6 @@ Esta es una implementación conceptual sin ARCore real. Para implementación com
 4. Se abre configuración del sistema
 5. Usuario habilita permisos manualmente
 
-### Comprar Ciudad
-
-1. Usuario abre tienda de ciudades
-2. Ve lista de ciudades disponibles
-3. Ciudades compradas muestran badge "Comprada"
-4. Usuario selecciona ciudad no comprada
-5. Presiona botón "Desbloquear $XX"
-6. Se inicia proceso de compra in-app
-7. Sistema procesa pago
-8. Ciudad se desbloquea
-
 ### Vista AR
 
 **Versión Simulada:**
@@ -300,7 +212,6 @@ Esta es una implementación conceptual sin ARCore real. Para implementación com
 ```kotlin
 // Estado para modales
 var showLocationPermission by remember { mutableStateOf(false) }
-var showCityStore by remember { mutableStateOf(false) }
 var showARView by remember { mutableStateOf(false) }
 
 // Verificar permisos al inicio
@@ -332,20 +243,6 @@ if (showLocationPermission) {
     )
 }
 
-// CityStoreModal
-if (showCityStore) {
-    CityStoreModal(
-        availableCities = viewModel.availableCities.collectAsState().value,
-        onPurchaseCity = { city ->
-            viewModel.purchaseCity(city)
-        },
-        onRestorePurchases = {
-            viewModel.restorePurchases()
-        },
-        onDismiss = { showCityStore = false }
-    )
-}
-
 // ARViewModal
 if (showARView) {
     ARComingSoonModal(
@@ -367,16 +264,6 @@ if (showARView) {
 - [x] Botones de acción
 - [ ] Integrado en HomeScreen (pendiente)
 
-### CityStoreModal
-- [x] Componente creado
-- [x] Modelo CityProduct
-- [x] Lista de ciudades
-- [x] Card diferenciado
-- [x] Estados de compra
-- [x] Botón restaurar
-- [ ] Integración con StoreKit (pendiente)
-- [ ] Integrado en HomeScreen (pendiente)
-
 ### ARViewModal
 - [x] Componente creado
 - [x] Vista simulada
@@ -396,20 +283,14 @@ if (showARView) {
 
 ## 🚀 Próximos Pasos
 
-### Integración Completa
+### Integración Final
 
 1. **Agregar modales a HomeScreen**
    - Estados locales para cada modal
    - Callbacks conectados
    - Lógica de permisos
 
-2. **Implementar StoreKit**
-   - Configurar productos in-app
-   - Procesar pagos
-   - Validar recibos
-   - Sincronizar compras
-
-3. **Implementar ARCore (Opcional)**
+2. **Implementar ARCore (Opcional)**
    - Agregar dependencia ARCore
    - Solicitar permisos de cámara
    - Implementar tracking
@@ -422,13 +303,7 @@ if (showARView) {
    - Tutorial interactivo
    - Video explicativo
 
-2. **CityStoreModal**
-   - Bundles de ciudades
-   - Descuentos temporales
-   - Preview de rutas
-   - Ratings y reviews
-
-3. **ARViewModal**
+2. **ARViewModal**
    - Implementación real con ARCore
    - Detección de superficies
    - Marcadores 3D
@@ -438,13 +313,14 @@ if (showARView) {
 
 ## 🏆 Logros
 
-- ✨ 3 modales adicionales completamente funcionales
-- ✨ 850 líneas de código de alta calidad
+- ✨ 2 modales adicionales completamente funcionales
+- ✨ 570 líneas de código de alta calidad
 - ✨ Material 3 design system consistente
 - ✨ UX patterns modernos y educativos
 - ✨ Build exitoso sin errores
 - ✨ Código modular y reutilizable
 - ✨ Preparado para integración futura
+- ✅ Todas las ciudades gratuitas (sin compras in-app)
 
 ---
 
@@ -456,12 +332,12 @@ if (showARView) {
 **Fase 6B:** Modales de Selección (930 líneas)  
 **Fase 6C:** Favoritos y Lugares (1,000 líneas)  
 **Fase 6D:** Modales de Viaje (1,200 líneas)  
-**Fase 6E:** Modales Adicionales (850 líneas) 🆕
+**Fase 6E:** Modales Adicionales (570 líneas) 🆕
 
-**Total Fase 6:** ~4,525 líneas  
-**Total Proyecto:** ~7,415 líneas  
-**Total Archivos:** 42 archivos  
-**Total Modales:** 16 modales funcionales
+**Total Fase 6:** ~4,245 líneas  
+**Total Proyecto:** ~7,135 líneas  
+**Total Archivos:** 41 archivos  
+**Total Modales:** 15 modales funcionales
 
 ---
 
