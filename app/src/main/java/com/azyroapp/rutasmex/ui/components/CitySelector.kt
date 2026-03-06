@@ -1,66 +1,78 @@
 package com.azyroapp.rutasmex.ui.components
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.azyroapp.rutasmex.data.model.City
 
 /**
- * Bottom sheet para seleccionar ciudad
+ * Selector de ciudad para el TopAppBar
+ * Réplica del CitySelector.swift de iOS
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CitySelector(
+    currentCity: City?,
     cities: List<City>,
     onCitySelected: (City) -> Unit,
-    onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        modifier = modifier
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp)
+    var expanded by remember { mutableStateOf(false) }
+    
+    Box(modifier = modifier) {
+        // Botón del selector
+        TextButton(
+            onClick = { expanded = true }
         ) {
-            // Título
-            Text(
-                text = "Selecciona tu ciudad",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Text(
-                text = "Elige la ciudad donde deseas buscar rutas",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Lista de ciudades
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                items(cities) { city ->
-                    CityItem(
-                        city = city,
-                        onClick = {
-                            onCitySelected(city)
-                            onDismiss()
+                Text(
+                    text = currentCity?.name ?: "Selecciona Ciudad",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Seleccionar ciudad",
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        
+        // Menú desplegable
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            cities.forEach { city ->
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(city.name)
+                            
+                            if (currentCity?.id == city.id) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Ciudad seleccionada",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
-                    )
-                }
+                    },
+                    onClick = {
+                        onCitySelected(city)
+                        expanded = false
+                    }
+                )
             }
         }
     }

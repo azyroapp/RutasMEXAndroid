@@ -33,6 +33,9 @@ fun MapControlsBar(
     onMapSelection: () -> Unit,
     onSearch: () -> Unit,
     onTripBannerClick: () -> Unit = {},
+    onChangeOrigin: () -> Unit = {},
+    onChangeDestination: () -> Unit = {},
+    onNewOriginDestination: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -87,12 +90,67 @@ fun MapControlsBar(
             onClick = onConfigureRadius
         )
         
-        // Selección en mapa
-        MapControlButton(
-            icon = Icons.Default.MyLocation,
-            enabled = !isTripActive && hasCity,
-            onClick = onMapSelection
-        )
+        // Selección en mapa (con menú si hay ubicaciones)
+        if (hasOrigin || hasDestination) {
+            // Con ubicaciones: mostrar menú
+            var showMenu by remember { mutableStateOf(false) }
+            
+            Box {
+                MapControlButton(
+                    icon = Icons.Default.MyLocation,
+                    enabled = !isTripActive && hasCity,
+                    onClick = { showMenu = true }
+                )
+                
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Nuevo origen y destino") },
+                        onClick = {
+                            onNewOriginDestination()
+                            showMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.LocationOn, contentDescription = null)
+                        },
+                        enabled = !isTripActive
+                    )
+                    
+                    DropdownMenuItem(
+                        text = { Text("Cambiar origen") },
+                        onClick = {
+                            onChangeOrigin()
+                            showMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Place, contentDescription = null)
+                        },
+                        enabled = hasDestination && !isTripActive
+                    )
+                    
+                    DropdownMenuItem(
+                        text = { Text("Cambiar destino") },
+                        onClick = {
+                            onChangeDestination()
+                            showMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.FmdGood, contentDescription = null)
+                        },
+                        enabled = hasOrigin && !isTripActive
+                    )
+                }
+            }
+        } else {
+            // Sin ubicaciones: tap directo
+            MapControlButton(
+                icon = Icons.Default.MyLocation,
+                enabled = !isTripActive && hasCity,
+                onClick = onMapSelection
+            )
+        }
         
         // Búsqueda
         MapControlButton(

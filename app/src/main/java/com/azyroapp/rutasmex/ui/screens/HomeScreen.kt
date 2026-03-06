@@ -79,6 +79,7 @@ fun HomeScreen(
     var showEditPlace by remember { mutableStateOf(false) }
     var placeToEdit by remember { mutableStateOf<com.azyroapp.rutasmex.data.model.SavedPlace?>(null) }
     var showTripDetail by remember { mutableStateOf(false) }
+    var showProximityConfigModal by remember { mutableStateOf(false) }
     
     // Permisos de ubicación
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -133,7 +134,17 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("RutasMEX") },
+                title = {
+                    // CitySelector en el centro (como iOS)
+                    CitySelector(
+                        currentCity = currentCity,
+                        cities = cities,
+                        onCitySelected = { city ->
+                            viewModel.selectCity(city)
+                            Toast.makeText(context, "Ciudad: ${city.name}", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                },
                 navigationIcon = {
                     // Botón de modo de cálculo (IZQUIERDA)
                     CalculationModeButton(
@@ -152,7 +163,7 @@ fun HomeScreen(
                             viewModel.toggleMapType()
                         },
                         onShowProximityConfig = {
-                            showRadiusConfig = true
+                            showProximityConfigModal = true
                         },
                         onShowSavedPlaces = {
                             showSavedPlacesManager = true
@@ -249,6 +260,19 @@ fun HomeScreen(
                     },
                     onTripBannerClick = {
                         showTripDetail = true
+                    },
+                    onChangeOrigin = {
+                        isSelectingOrigin = true
+                        showLocationSelection = true
+                    },
+                    onChangeDestination = {
+                        isSelectingOrigin = false
+                        showLocationSelection = true
+                    },
+                    onNewOriginDestination = {
+                        viewModel.clearLocations()
+                        isSelectingOrigin = true
+                        showLocationSelection = true
                     }
                 )
                 
@@ -293,12 +317,13 @@ fun HomeScreen(
     // Bottom Sheets
     if (showCitySelector) {
         CitySelector(
+            currentCity = currentCity,
             cities = cities,
             onCitySelected = { city ->
                 viewModel.selectCity(city)
                 Toast.makeText(context, "Ciudad: ${city.name}", Toast.LENGTH_SHORT).show()
-            },
-            onDismiss = { showCitySelector = false }
+                showCitySelector = false
+            }
         )
     }
     
@@ -741,5 +766,29 @@ fun HomeScreen(
                 }
             )
         }
+    }
+    
+    // Modal de configuración de proximidad (3 radios: Far, Medium, Near)
+    if (showProximityConfigModal) {
+        ProximityConfigModalNew(
+            initialFarRadius = 300.0,
+            initialMediumRadius = 200.0,
+            initialNearRadius = 100.0,
+            initialNotificationsEnabled = proximityConfig.notificationsEnabled,
+            initialSoundEnabled = proximityConfig.soundEnabled,
+            initialVibrationEnabled = proximityConfig.vibrationEnabled,
+            onConfigChanged = { far, medium, near, notifications, sound, vibration ->
+                // TODO: Guardar los 3 radios en PreferencesManager
+                viewModel.updateProximityConfig(near, notifications, sound, vibration)
+                Toast.makeText(
+                    context,
+                    "Configuración de proximidad guardada",
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            onDismiss = {
+                showProximityConfigModal = false
+            }
+        )
     }
 }
