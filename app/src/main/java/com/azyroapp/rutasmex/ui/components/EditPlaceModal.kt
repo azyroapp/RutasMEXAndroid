@@ -6,44 +6,135 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.azyroapp.rutasmex.data.model.PlaceCategory
 import com.azyroapp.rutasmex.data.model.SavedPlace
+import kotlinx.coroutines.launch
 
 /**
  * Modal para agregar o editar un lugar guardado
+ * 
+ * @param place Lugar existente a editar (null = agregar nuevo)
+ * @param initialLocation Ubicación inicial desde el mapa (latLng, nombre)
+ * @param onSave Callback al guardar (name, latitude, longitude, category)
+ * @param onDismiss Callback al cerrar
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditPlaceModal(
     place: SavedPlace? = null, // null = agregar nuevo, no-null = editar existente
+    initialLocation: Pair<com.google.android.gms.maps.model.LatLng, String>? = null, // Desde mapa
     onSave: (name: String, latitude: Double, longitude: Double, category: PlaceCategory) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    
+    // Si viene desde el mapa, usar esos datos
+    val isFromMap = initialLocation != null && place == null
+    val isEditingPlace = place != null // Editando lugar guardado
+    val initialLat = initialLocation?.first?.latitude ?: place?.latitude
+    val initialLon = initialLocation?.first?.longitude ?: place?.longitude
+    
+    // Estados
     var name by remember { mutableStateOf(place?.name ?: "") }
-    var latitude by remember { mutableStateOf(place?.latitude?.toString() ?: "") }
-    var longitude by remember { mutableStateOf(place?.longitude?.toString() ?: "") }
+    var address by remember { mutableStateOf(place?.address ?: "") }
+    var latitude by remember { mutableStateOf(initialLat?.toString() ?: "") }
+    var longitude by remember { mutableStateOf(initialLon?.toString() ?: "") }
     var selectedCategory by remember { mutableStateOf(place?.category ?: PlaceCategory.OTHER) }
-    var showCategoryMenu by remember { mutableStateOf(false) }
+    var isLoadingAddress by remember { mutableStateOf(false) }
+    
+    // Debug log
+    android.util.Log.d("EditPlaceModal", "🎯 isFromMap: $isFromMap, isEditingPlace: $isEditingPlace, initialLocation: $initialLocation, place: $place")
+    
+    // ✅ GEOCODING AUTOMÁTICO (como iOS onAppear)
+    LaunchedEffect(initialLocation) {
+        if (initialLocation != null && address.isBlank()) {
+            android.util.Log.d("EditPlaceModal", "🌍 Iniciando geocoding automático...")
+            isLoadingAddress = true
+            
+            val result = com.azyroapp.rutasmex.core.services.GeocodingService.reverseGeocode(
+                context = context,
+                latitude = initialLocation.first.latitude,
+                longitude = initialLocation.first.longitude
+            )
+            
+            result.fold(
+                onSuccess = { fetchedAddress ->
+                    android.util.Log.d("EditPlaceModal", "✅ Dirección obtenida: $fetchedAddress")
+                    address = fetchedAddress
+                    isLoadingAddress = false
+                },
+                onFailure = { error ->
+                    android.util.Log.e("EditPlaceModal", "❌ Error geocoding: ${error.message}")
+                    address = "Dirección no disponible"
+                    isLoadingAddress = false
+                }
+            )
+        }
+    }
     
     val isEditing = place != null
     val isValid = name.isNotBlank() && 
                   latitude.toDoubleOrNull() != null && 
                   longitude.toDoubleOrNull() != null
     
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
-            Text(if (isEditing) "Editar Lugar" else "Agregar Lugar")
-        },
-        text = {
+        modifier = Modifier.fillMaxHeight(0.9f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header con título y botones
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cancelar"
+                    )
+                }
+                
+                Text(
+                    text = if (isEditing) "Editar Lugar" else "Agregar Lugar",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                
+                TextButton(
+                    onClick = {
+                        if (isValid) {
+                            onSave(
+                                name,
+                                latitude.toDouble(),
+                                longitude.toDouble(),
+                                selectedCategory
+                            )
+                            onDismiss()
+                        }
+                    },
+                    enabled = isValid
+                ) {
+                    Text(if (isEditing) "Guardar" else "Agregar")
+                }
+            }
+            
+            Divider()
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Nombre
+                // Nombre (siempre editable) ✏️
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -53,78 +144,74 @@ fun EditPlaceModal(
                         Icon(Icons.Default.Place, contentDescription = null)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    enabled = true // ✅ EDITABLE
                 )
                 
-                // Categoría
-                ExposedDropdownMenuBox(
-                    expanded = showCategoryMenu,
-                    onExpandedChange = { showCategoryMenu = it }
-                ) {
-                    OutlinedTextField(
-                        value = getCategoryDisplayName(selectedCategory),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Categoría") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = showCategoryMenu)
-                        },
-                        leadingIcon = {
-                            Icon(getCategoryIcon(selectedCategory), contentDescription = null)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(),
-                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
-                    )
-                    
-                    ExposedDropdownMenu(
-                        expanded = showCategoryMenu,
-                        onDismissRequest = { showCategoryMenu = false }
-                    ) {
-                        PlaceCategory.values().forEach { category ->
-                            DropdownMenuItem(
-                                text = { Text(getCategoryDisplayName(category)) },
-                                onClick = {
-                                    selectedCategory = category
-                                    showCategoryMenu = false
-                                },
-                                leadingIcon = {
-                                    Icon(getCategoryIcon(category), contentDescription = null)
-                                }
+                // Dirección (solo lectura) 🔒
+                OutlinedTextField(
+                    value = if (isLoadingAddress) "Cargando..." else address,
+                    onValueChange = {}, // No hace nada
+                    label = { Text("Dirección") },
+                    leadingIcon = {
+                        Icon(Icons.Default.LocationOn, contentDescription = null)
+                    },
+                    trailingIcon = {
+                        if (isLoadingAddress) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
                             )
                         }
-                    }
-                }
-                
-                // Latitud
-                OutlinedTextField(
-                    value = latitude,
-                    onValueChange = { latitude = it },
-                    label = { Text("Latitud") },
-                    placeholder = { Text("16.7504034") },
-                    leadingIcon = {
-                        Icon(Icons.Default.LocationOn, contentDescription = null)
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    isError = latitude.isNotBlank() && latitude.toDoubleOrNull() == null
+                    singleLine = false,
+                    maxLines = 2,
+                    enabled = false, // ✅ SOLO LECTURA
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
                 
-                // Longitud
+                // Latitud (solo lectura) 🔒
                 OutlinedTextField(
-                    value = longitude,
-                    onValueChange = { longitude = it },
-                    label = { Text("Longitud") },
-                    placeholder = { Text("-93.12392021") },
+                    value = latitude,
+                    onValueChange = {}, // No hace nada
+                    label = { Text("Latitud") },
                     leadingIcon = {
                         Icon(Icons.Default.LocationOn, contentDescription = null)
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    isError = longitude.isNotBlank() && longitude.toDoubleOrNull() == null
+                    enabled = false, // ✅ SOLO LECTURA
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+                
+                // Longitud (solo lectura) 🔒
+                OutlinedTextField(
+                    value = longitude,
+                    onValueChange = {}, // No hace nada
+                    label = { Text("Longitud") },
+                    leadingIcon = {
+                        Icon(Icons.Default.LocationOn, contentDescription = null)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = false, // ✅ SOLO LECTURA
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
                 
                 if (!isValid && name.isNotBlank()) {
@@ -134,32 +221,19 @@ fun EditPlaceModal(
                         color = MaterialTheme.colorScheme.error
                     )
                 }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (isValid) {
-                        onSave(
-                            name,
-                            latitude.toDouble(),
-                            longitude.toDouble(),
-                            selectedCategory
-                        )
-                        onDismiss()
-                    }
-                },
-                enabled = isValid
-            ) {
-                Text(if (isEditing) "Guardar" else "Agregar")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                
+                // Nota informativa
+                if (isFromMap || isEditingPlace) {
+                    Text(
+                        text = "Solo puedes modificar el nombre del lugar",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
             }
         }
-    )
+    }
 }
 
 /**

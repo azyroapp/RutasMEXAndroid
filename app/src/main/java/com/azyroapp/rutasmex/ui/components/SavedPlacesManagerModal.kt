@@ -14,14 +14,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.azyroapp.rutasmex.core.services.GeocodingService
 import com.azyroapp.rutasmex.data.model.PlaceCategory
 import com.azyroapp.rutasmex.data.model.SavedPlace
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import kotlinx.coroutines.launch
 
 /**
  * Modal para gestionar lugares guardados
@@ -44,10 +47,15 @@ fun SavedPlacesManagerModal(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    
     // Estado: modo lista o modo agregar
     var isAddingPlace by remember { mutableStateOf(false) }
     var selectedCoordinate by remember { mutableStateOf<LatLng?>(null) }
     var showPlaceEditor by remember { mutableStateOf(false) }
+    var locationFromMap by remember { mutableStateOf<Pair<LatLng, String>?>(null) }
+    var isGeocodingInProgress by remember { mutableStateOf(false) }
     
     // Snackbar
     val snackbarHostState = remember { SnackbarHostState() }
@@ -70,7 +78,7 @@ fun SavedPlacesManagerModal(
                 onDismiss()
             }
         },
-        modifier = modifier
+        modifier = modifier.fillMaxHeight()
     ) {
         Scaffold(
             snackbarHost = {
@@ -134,13 +142,50 @@ fun SavedPlacesManagerModal(
             ) {
                 if (isAddingPlace) {
                     // Modo agregar: Mapa interactivo
-                    MapForPlaceSelection(
-                        selectedCoordinate = selectedCoordinate,
-                        onMapClick = { latLng ->
-                            selectedCoordinate = latLng
-                            showPlaceEditor = true
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        MapForPlaceSelection(
+                            selectedCoordinate = selectedCoordinate,
+                            onMapClick = { latLng ->
+                                android.util.Log.d("SavedPlacesManagerModal", "🗺️ Mapa tocado en: ${latLng.latitude}, ${latLng.longitude}")
+                                selectedCoordinate = latLng
+                                isGeocodingInProgress = true
+                                
+                                // Hacer geocoding reverso antes de abrir el modal
+                                coroutineScope.launch {
+                                    android.util.Log.d("SavedPlacesManagerModal", "🔄 Iniciando geocoding...")
+                                    val result = GeocodingService.reverseGeocode(
+                                        context = context,
+                                        latitude = latLng.latitude,
+                                        longitude = latLng.longitude
+                                    )
+                                    
+                                    result.fold(
+                                        onSuccess = { address ->
+                                            android.util.Log.d("SavedPlacesManagerModal", "✅ Geocoding exitoso: $address")
+                                            locationFromMap = Pair(latLng, address)
+                                            showPlaceEditor = true
+                                            isGeocodingInProgress = false
+                                        },
+                                        onFailure = { error ->
+                                            android.util.Log.e("SavedPlacesManagerModal", "❌ Geocoding falló: ${error.message}")
+                                            // Si falla el geocoding, usar coordenadas como dirección
+                                            val fallbackAddress = "Lat: ${String.format("%.6f", latLng.latitude)}, Lon: ${String.format("%.6f", latLng.longitude)}"
+                                            locationFromMap = Pair(latLng, fallbackAddress)
+                                            showPlaceEditor = true
+                                            isGeocodingInProgress = false
+                                        }
+                                    )
+                                }
+                            }
+                        )
+                        
+                        // Indicador de geocoding en progreso
+                        if (isGeocodingInProgress) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.align(Alignment.Center)
+                            )
                         }
-                    )
+                    }
                 } else {
                     // Modo lista: Lugares guardados
                     PlacesList(
@@ -158,9 +203,10 @@ fun SavedPlacesManagerModal(
     }
     
     // Modal de editor de lugar
-    if (showPlaceEditor && selectedCoordinate != null) {
+    if (showPlaceEditor && locationFromMap != null) {
         EditPlaceModal(
             place = null, // Nuevo lugar
+            initialLocation = locationFromMap, // Pasar ubicación con dirección desde geocoding
             onSave = { name, lat, lon, category ->
                 // Crear nuevo lugar
                 val newPlace = SavedPlace.create(
@@ -174,10 +220,12 @@ fun SavedPlacesManagerModal(
                 // Salir del modo agregar
                 isAddingPlace = false
                 selectedCoordinate = null
+                locationFromMap = null
                 showPlaceEditor = false
             },
             onDismiss = {
                 showPlaceEditor = false
+                locationFromMap = null
             }
         )
     }

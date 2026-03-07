@@ -25,47 +25,60 @@ object GeocodingService {
         longitude: Double
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
+            android.util.Log.d("GeocodingService", "🌍 Iniciando reverseGeocode para: $latitude, $longitude")
+            
             if (!Geocoder.isPresent()) {
+                android.util.Log.e("GeocodingService", "❌ Geocoder no disponible en este dispositivo")
                 return@withContext Result.failure(
                     Exception("Geocoder no disponible en este dispositivo")
                 )
             }
             
+            android.util.Log.d("GeocodingService", "✅ Geocoder disponible, API Level: ${Build.VERSION.SDK_INT}")
             val geocoder = Geocoder(context, Locale.getDefault())
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 // API 33+ - Usar callback asíncrono
+                android.util.Log.d("GeocodingService", "📱 Usando API 33+ (callback asíncrono)")
                 suspendCancellableCoroutine { continuation ->
                     geocoder.getFromLocation(
                         latitude,
                         longitude,
                         1
                     ) { addresses ->
+                        android.util.Log.d("GeocodingService", "📍 Callback recibido, addresses.size: ${addresses.size}")
                         if (addresses.isNotEmpty()) {
                             val address = addresses[0]
                             val placeName = formatAddress(address)
+                            android.util.Log.d("GeocodingService", "✅ Dirección encontrada: $placeName")
                             continuation.resume(Result.success(placeName))
                         } else {
-                            continuation.resume(
-                                Result.success("Lat: ${String.format("%.4f", latitude)}, Lon: ${String.format("%.4f", longitude)}")
-                            )
+                            val fallback = "Lat: ${String.format("%.4f", latitude)}, Lon: ${String.format("%.4f", longitude)}"
+                            android.util.Log.w("GeocodingService", "⚠️ No se encontró dirección, usando fallback: $fallback")
+                            continuation.resume(Result.success(fallback))
                         }
                     }
                 }
             } else {
                 // API < 33 - Usar método síncrono
+                android.util.Log.d("GeocodingService", "📱 Usando API < 33 (método síncrono)")
                 @Suppress("DEPRECATION")
                 val addresses = geocoder.getFromLocation(latitude, longitude, 1)
                 
+                android.util.Log.d("GeocodingService", "📍 Resultado recibido, addresses: ${addresses?.size ?: 0}")
                 if (!addresses.isNullOrEmpty()) {
                     val address = addresses[0]
                     val placeName = formatAddress(address)
+                    android.util.Log.d("GeocodingService", "✅ Dirección encontrada: $placeName")
                     Result.success(placeName)
                 } else {
-                    Result.success("Lat: ${String.format("%.4f", latitude)}, Lon: ${String.format("%.4f", longitude)}")
+                    val fallback = "Lat: ${String.format("%.4f", latitude)}, Lon: ${String.format("%.4f", longitude)}"
+                    android.util.Log.w("GeocodingService", "⚠️ No se encontró dirección, usando fallback: $fallback")
+                    Result.success(fallback)
                 }
             }
         } catch (e: Exception) {
+            android.util.Log.e("GeocodingService", "❌ Error en reverseGeocode: ${e.message}", e)
             Result.failure(e)
         }
     }

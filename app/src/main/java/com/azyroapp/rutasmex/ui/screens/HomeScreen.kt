@@ -82,6 +82,7 @@ fun HomeScreen(
     var isLocationPermissionGranted by remember { mutableStateOf(false) }
     var showEditPlace by remember { mutableStateOf(false) }
     var placeToEdit by remember { mutableStateOf<com.azyroapp.rutasmex.data.model.SavedPlace?>(null) }
+    var locationFromMap by remember { mutableStateOf<Pair<LatLng, String>?>(null) } // Para guardar desde mapa
     var showTripDetail by remember { mutableStateOf(false) }
     var showProximityConfigModal by remember { mutableStateOf(false) }
     var showTripHistory by remember { mutableStateOf(false) }
@@ -788,9 +789,11 @@ fun HomeScreen(
                 viewModel.clearLongPressLocation()
             },
             onSavePlace = {
-                val location = com.azyroapp.rutasmex.data.model.LocationPoint.fromLatLng(latLng, name)
-                viewModel.savePlaceFromLocation(location, com.azyroapp.rutasmex.data.model.PlaceCategory.OTHER)
-                Toast.makeText(context, "Lugar guardado", Toast.LENGTH_SHORT).show()
+                // Abrir modal EditPlaceModal con datos prellenados
+                locationFromMap = Pair(latLng, name)
+                placeToEdit = null
+                showEditPlace = true
+                showMapLocationOptions = false
                 viewModel.clearLongPressLocation()
             },
             onShareLocation = {
@@ -826,6 +829,7 @@ fun HomeScreen(
     if (showEditPlace) {
         EditPlaceModal(
             place = placeToEdit,
+            initialLocation = locationFromMap, // Pasar ubicación desde mapa
             onSave = { name, lat, lon, category ->
                 if (placeToEdit != null) {
                     // Editar lugar existente
@@ -858,10 +862,12 @@ fun HomeScreen(
                 }
                 showEditPlace = false
                 placeToEdit = null
+                locationFromMap = null // Limpiar
             },
             onDismiss = {
                 showEditPlace = false
                 placeToEdit = null
+                locationFromMap = null // Limpiar
             }
         )
     }
